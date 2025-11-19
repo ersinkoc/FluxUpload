@@ -35,6 +35,47 @@ runner.describe('HealthCheck', () => {
     assert.ok(status.checks.memory);
     assert.ok(status.checks.memory.heapUsed >= 0);
   });
+
+  runner.it('should check eventloop lag', async () => {
+    const health = new HealthCheck();
+    const status = await health.check();
+    assert.ok(status.checks.eventloop);
+    assert.ok(status.checks.eventloop.lag >= 0);
+  });
+
+  runner.it('should return pass status when healthy', async () => {
+    const health = new HealthCheck();
+    const status = await health.check();
+    assert.equal(status.status, 'pass');
+  });
+
+  runner.it('should include timestamp', async () => {
+    const health = new HealthCheck();
+    const status = await health.check();
+    assert.ok(status.timestamp);
+    assert.ok(new Date(status.timestamp).getTime() > 0);
+  });
+
+  runner.it('should check all standard checks', async () => {
+    const health = new HealthCheck();
+    const status = await health.check();
+    assert.ok(status.checks.uptime);
+    assert.ok(status.checks.memory);
+    assert.ok(status.checks.eventloop);
+  });
+
+  runner.it('should format uptime in human readable format', async () => {
+    const health = new HealthCheck();
+    const status = await health.check();
+    assert.ok(status.checks.uptime.uptimeHuman);
+  });
+
+  runner.it('should calculate memory percentage', async () => {
+    const health = new HealthCheck();
+    const status = await health.check();
+    assert.ok(status.checks.memory.systemMemoryPercentage >= 0);
+    assert.ok(status.checks.memory.systemMemoryPercentage <= 100);
+  });
 });
 
 if (require.main === module) {
