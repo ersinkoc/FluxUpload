@@ -40,15 +40,6 @@ runner.describe('ProgressTracker', () => {
     const stats = tracker.getStatistics();
     assert.ok(stats.completed);
   });
-});
-
-if (require.main === module) {
-  runner.run().then(success => {
-    process.exit(success ? 0 : 1);
-  });
-}
-
-module.exports = runner;
 
   runner.it('should create progress stream', () => {
     const tracker = new ProgressTracker();
@@ -70,3 +61,12 @@ module.exports = runner;
     assert.ok(typeof tracker.on === 'function');
     assert.ok(typeof tracker.emit === 'function');
   });
+});
+
+if (require.main === module) {
+  runner.run().then(success => {
+    process.exit(success ? 0 : 1);
+  });
+}
+
+module.exports = runner;
