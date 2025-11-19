@@ -48,13 +48,16 @@ class FileNaming {
     let baseName;
     let extension = '';
 
+    // Sanitize the full path first to handle path separators
+    const sanitizedPath = this._sanitize(originalFilename);
+
     // Extract extension if preserving
-    if (this.preserveExtension && originalFilename) {
-      extension = path.extname(originalFilename);
-      const nameWithoutExt = path.basename(originalFilename, extension);
+    if (this.preserveExtension && sanitizedPath) {
+      extension = path.extname(sanitizedPath);
+      const nameWithoutExt = path.basename(sanitizedPath, extension);
       baseName = nameWithoutExt;
     } else {
-      baseName = originalFilename;
+      baseName = path.basename(sanitizedPath);
     }
 
     // Generate name based on strategy
@@ -62,7 +65,7 @@ class FileNaming {
 
     switch (this.strategy) {
       case 'original':
-        generatedName = this._sanitize(baseName);
+        generatedName = baseName; // Already sanitized above
         break;
 
       case 'uuid':
