@@ -13,16 +13,20 @@ async function runAllTests() {
   console.log('='.repeat(60));
 
   const tests = [
+    // Unit tests - Main API
+    { name: 'FluxUpload', path: './unit/FluxUpload.test.js' },
+
+    // Unit tests - Core
+    { name: 'Plugin', path: './unit/Plugin.test.js' },
+    { name: 'MultipartParser', path: './unit/MultipartParser.test.js' },
+    { name: 'PipelineManager', path: './unit/PipelineManager.test.js' },
+
     // Unit tests - Utils
     { name: 'MimeDetector', path: './unit/MimeDetector.test.js' },
     { name: 'FileNaming', path: './unit/FileNaming.test.js' },
     { name: 'BoundaryScanner', path: './unit/BoundaryScanner.test.js' },
     { name: 'AwsSignatureV4', path: './unit/AwsSignatureV4.test.js' },
     { name: 'SignedUrls', path: './unit/SignedUrls.test.js' },
-
-    // Unit tests - Core
-    { name: 'MultipartParser', path: './unit/MultipartParser.test.js' },
-    { name: 'PipelineManager', path: './unit/PipelineManager.test.js' },
 
     // Unit tests - Validators
     { name: 'RateLimiter', path: './unit/RateLimiter.test.js' },
@@ -37,6 +41,13 @@ async function runAllTests() {
 
     // Unit tests - Storage
     { name: 'LocalStorage', path: './unit/LocalStorage.test.js' },
+    { name: 'S3Storage', path: './unit/S3Storage.test.js' },
+
+    // Unit tests - Observability
+    { name: 'Logger', path: './unit/Logger.test.js' },
+    { name: 'MetricsCollector', path: './unit/MetricsCollector.test.js' },
+    { name: 'ProgressTracker', path: './unit/ProgressTracker.test.js' },
+    { name: 'HealthCheck', path: './unit/HealthCheck.test.js' },
 
     // Integration tests
     { name: 'Upload Integration', path: './integration/upload.test.js' }
