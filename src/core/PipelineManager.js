@@ -57,33 +57,58 @@ class PipelineManager {
 
     this.executedPlugins = [];
 
-    try {
-      // Phase 1: Validation
-      // Validators can inspect metadata and first bytes without consuming stream
-      for (const validator of this.validators) {
-        await validator.process(context);
-        this.executedPlugins.push(validator);
+    return new Promise(async (resolve, reject) => {
+      let rejected = false;
+
+      // Setup error handler for the stream
+      const errorHandler = async (error) => {
+        if (rejected) return; // Avoid multiple rejects
+        rejected = true;
+        await this._cleanup(context, error);
+        reject(error);
+      };
+
+      // Listen for errors on source stream from the start
+      if (sourceStream) {
+        sourceStream.on('error', errorHandler);
       }
 
-      // Phase 2: Transformation
-      // Transformers wrap the stream with transform streams
-      for (const transformer of this.transformers) {
-        context.stream = await this._wrapStream(context.stream, transformer, context);
-        this.executedPlugins.push(transformer);
+      try {
+        // Phase 1: Validation
+        // Validators can inspect metadata and first bytes without consuming stream
+        for (const validator of this.validators) {
+          await validator.process(context);
+          this.executedPlugins.push(validator);
+
+          // If validator wrapped the stream, listen for errors
+          if (context.stream && context.stream !== sourceStream) {
+            context.stream.on('error', errorHandler);
+          }
+        }
+
+        // Phase 2: Transformation
+        // Transformers wrap the stream with transform streams
+        for (const transformer of this.transformers) {
+          context.stream = await this._wrapStream(context.stream, transformer, context);
+          this.executedPlugins.push(transformer);
+
+          // Listen for errors on transformed stream
+          if (context.stream) {
+            context.stream.on('error', errorHandler);
+          }
+        }
+
+        // Phase 3: Storage
+        // Storage plugin is the final destination
+        const result = await this.storage.process(context);
+        this.executedPlugins.push(this.storage);
+
+        resolve(result);
+
+      } catch (error) {
+        await errorHandler(error);
       }
-
-      // Phase 3: Storage
-      // Storage plugin is the final destination
-      const result = await this.storage.process(context);
-      this.executedPlugins.push(this.storage);
-
-      return result;
-
-    } catch (error) {
-      // Cleanup in reverse order
-      await this._cleanup(context, error);
-      throw error;
-    }
+    });
   }
 
   /**

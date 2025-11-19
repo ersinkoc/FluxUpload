@@ -18,6 +18,8 @@ async function runAllTests() {
     { name: 'FileNaming', path: './unit/FileNaming.test.js' },
     { name: 'BoundaryScanner', path: './unit/BoundaryScanner.test.js' },
     { name: 'AwsSignatureV4', path: './unit/AwsSignatureV4.test.js' },
+    { name: 'RateLimiter', path: './unit/RateLimiter.test.js' },
+    { name: 'StreamCompressor', path: './unit/StreamCompressor.test.js' },
 
     // Integration tests
     { name: 'Upload Integration', path: './integration/upload.test.js' }
