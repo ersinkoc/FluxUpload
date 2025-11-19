@@ -1,0 +1,132 @@
+# FluxUpload Docker Compose
+# Multiple deployment scenarios
+
+version: '3.8'
+
+services:
+  # Basic upload server
+  fluxupload-basic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluxupload-basic
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - fluxupload-network
+
+  # Express server
+  fluxupload-express:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluxupload-express
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./uploads/express:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    command: ["node", "examples/express-example.js"]
+    restart: unless-stopped
+    networks:
+      - fluxupload-network
+
+  # S3 upload server (requires AWS credentials)
+  fluxupload-s3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluxupload-s3
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - S3_BUCKET=${S3_BUCKET}
+    command: ["node", "examples/s3-upload.js"]
+    restart: unless-stopped
+    networks:
+      - fluxupload-network
+    # Don't start if AWS credentials missing
+    profiles:
+      - s3
+
+  # MinIO (S3-compatible local storage)
+  minio:
+    image: minio/minio:latest
+    container_name: fluxupload-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    networks:
+      - fluxupload-network
+    profiles:
+      - minio
+
+  # FluxUpload with MinIO
+  fluxupload-minio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluxupload-with-minio
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - S3_BUCKET=uploads
+      - S3_ENDPOINT=http://minio:9000
+    command: ["node", "examples/s3-upload.js"]
+    depends_on:
+      - minio
+    restart: unless-stopped
+    networks:
+      - fluxupload-network
+    profiles:
+      - minio
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: fluxupload-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - fluxupload-basic
+      - fluxupload-express
+    restart: unless-stopped
+    networks:
+      - fluxupload-network
+    profiles:
+      - proxy
+
+networks:
+  fluxupload-network:
+    driver: bridge
+
+volumes:
+  minio-data:
+    driver: local
