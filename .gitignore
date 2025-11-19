@@ -14,6 +14,7 @@ yarn.lock
 # Uploads directory (for testing)
 uploads/
 *.tmp
+test/tmp/
 
 # IDE
 .vscode/
