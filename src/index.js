@@ -14,6 +14,7 @@ const { PipelineManager, StreamMultiplexer } = require('./core/PipelineManager')
 const QuotaLimiter = require('./plugins/validators/QuotaLimiter');
 const MagicByteDetector = require('./plugins/validators/MagicByteDetector');
 const ImageDimensionProbe = require('./plugins/validators/ImageDimensionProbe');
+const RateLimiter = require('./plugins/validators/RateLimiter');
 
 // Transformers
 const StreamHasher = require('./plugins/transformers/StreamHasher');
@@ -27,6 +28,9 @@ const S3Storage = require('./storage/S3Storage');
 const FileNaming = require('./utils/FileNaming');
 const MimeDetector = require('./utils/MimeDetector');
 const AwsSignatureV4 = require('./utils/AwsSignatureV4');
+
+// Observability
+const observability = require('./observability');
 
 // Export main class as default
 module.exports = FluxUpload;
@@ -44,6 +48,7 @@ module.exports.StreamMultiplexer = StreamMultiplexer;
 module.exports.QuotaLimiter = QuotaLimiter;
 module.exports.MagicByteDetector = MagicByteDetector;
 module.exports.ImageDimensionProbe = ImageDimensionProbe;
+module.exports.RateLimiter = RateLimiter;
 
 // Transformers
 module.exports.StreamHasher = StreamHasher;
@@ -57,3 +62,13 @@ module.exports.S3Storage = S3Storage;
 module.exports.FileNaming = FileNaming;
 module.exports.MimeDetector = MimeDetector;
 module.exports.AwsSignatureV4 = AwsSignatureV4;
+
+// Observability (export entire module for convenience)
+module.exports.observability = observability;
+module.exports.Logger = observability.Logger;
+module.exports.getLogger = observability.getLogger;
+module.exports.configureLogger = observability.configureLogger;
+module.exports.MetricsCollector = observability.MetricsCollector;
+module.exports.getCollector = observability.getCollector;
+module.exports.ProgressTracker = observability.ProgressTracker;
+module.exports.HealthCheck = observability.HealthCheck;

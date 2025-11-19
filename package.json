@@ -31,7 +31,8 @@
     "example:s3": "node examples/s3-upload.js",
     "example:express": "node examples/express-example.js",
     "example:fastify": "node examples/fastify-example.js",
-    "example:advanced": "node examples/advanced-image-processing.js"
+    "example:advanced": "node examples/advanced-image-processing.js",
+    "example:monitoring": "node examples/monitoring-example.js"
   },
   "repository": {
     "type": "git",
@@ -51,6 +52,9 @@
     "API.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
+    "OBSERVABILITY.md",
+    "PERFORMANCE.md",
+    "TROUBLESHOOTING.md",
     "PROJECT_SUMMARY.md"
   ],
   "dependencies": {},

@@ -19,6 +19,7 @@
 - **🛡️ Security-First** - Magic byte verification, DDOS protection, atomic writes
 - **☁️ Multi-Storage** - Local, S3, or multiple destinations simultaneously
 - **⚡ High Performance** - Minimal CPU overhead, optimal memory usage
+- **📊 Observable** - Built-in logging, metrics, progress tracking, and health checks
 - **🎯 Production-Ready** - Handles backpressure, cleanup, and error recovery
 
 ## Table of Contents
@@ -239,6 +240,86 @@ class MyValidator extends Plugin {
   }
 }
 ```
+
+### Observability & Monitoring
+
+FluxUpload includes comprehensive **zero-dependency** observability features:
+
+#### Structured Logging
+
+```javascript
+const { getLogger } = require('fluxupload');
+
+const logger = getLogger({
+  level: 'info',
+  format: 'json',
+  baseContext: { service: 'my-api' }
+});
+
+logger.info('Upload completed', { fileCount: 3 });
+```
+
+#### Prometheus Metrics
+
+```javascript
+const { getCollector } = require('fluxupload');
+
+const metrics = getCollector();
+
+// Expose metrics endpoint
+app.get('/metrics', (req, res) => {
+  res.send(metrics.toPrometheus());
+});
+```
+
+Built-in metrics:
+- Upload rates, throughput, and duration
+- Active uploads gauge
+- Success/failure tracking
+- Plugin performance
+- File size distribution
+
+#### Progress Tracking
+
+```javascript
+const { ProgressTracker } = require('fluxupload');
+
+const tracker = new ProgressTracker();
+
+tracker.on('progress', (progress) => {
+  console.log(`${progress.percentage}% - ${progress.bytesPerSecond} bytes/s`);
+});
+```
+
+#### Health Checks
+
+```javascript
+const { HealthCheck } = require('fluxupload');
+
+const healthCheck = new HealthCheck();
+
+app.get('/health', async (req, res) => {
+  const health = await healthCheck.check();
+  res.json(health);
+});
+```
+
+#### Rate Limiting
+
+```javascript
+const { RateLimiter } = require('fluxupload');
+
+const uploader = new FluxUpload({
+  validators: [
+    new RateLimiter({
+      maxRequests: 100,
+      windowMs: 60000  // per minute
+    })
+  ]
+});
+```
+
+See [OBSERVABILITY.md](OBSERVABILITY.md) for complete monitoring guide and [examples/monitoring-example.js](examples/monitoring-example.js) for full implementation with Prometheus + Grafana.
 
 ## Architecture
 
