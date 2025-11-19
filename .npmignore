@@ -1,0 +1,55 @@
+# NPM ignore file - excludes files from npm publish
+
+# Development files
+.github/
+.git/
+.gitignore
+.env
+.env.*
+*.env
+
+# Documentation that's not needed in npm package
+docs/
+
+# Build and test
+benchmark/
+coverage/
+.nyc_output/
+*.log
+
+# Docker
+Dockerfile
+docker-compose.yml
+nginx.conf
+
+# Kubernetes
+k8s/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+uploads/
+
+# Lock files (don't publish lock files for libraries)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Editor backup files
+*~
+.*.sw[a-z]
+*.bak

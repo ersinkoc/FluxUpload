@@ -1,0 +1,107 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║                    FLUXUPLOAD PROGRESS TRACKING                        ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+Upload Session: user-upload-abc123
+Started: 2024-01-15 14:23:01 UTC
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ File 1: vacation-photo.jpg                                            │
+├────────────────────────────────────────────────────────────────────────┤
+│ Status: Uploading                                                      │
+│ Progress: ████████████████████████████░░░░░░░░░░░░ 68% (3.4 MB / 5 MB)│
+│ Speed: 1.2 MB/s                                                        │
+│ ETA: 2 seconds                                                         │
+│ Hash (SHA256): computing...                                           │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ File 2: document.pdf                                                   │
+├────────────────────────────────────────────────────────────────────────┤
+│ Status: Complete ✓                                                     │
+│ Progress: ████████████████████████████████████████ 100% (2.1 MB / 2.1)│
+│ Speed: 1.5 MB/s (average)                                              │
+│ Duration: 1.4 seconds                                                  │
+│ Hash (SHA256): 5d41402abc4b2a76b9719d911017c592                        │
+│ Location: /uploads/document-20240115-142302.pdf                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ File 3: video.mp4                                                      │
+├────────────────────────────────────────────────────────────────────────┤
+│ Status: Queued                                                         │
+│ Progress: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0% (0 B / 50 MB)   │
+│ Position: 3 of 3                                                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+Overall Progress
+════════════════════════════════════════════════════════════════════════
+Total: ████████████████░░░░░░░░░░░░░░░░░░░░░░░░ 38% (5.5 MB / 14.1 MB)
+Files: 1 completed, 1 in progress, 1 queued
+Speed: 1.2 MB/s (current) | 1.3 MB/s (average)
+ETA: 8 seconds
+
+════════════════════════════════════════════════════════════════════════
+
+Real-time Updates via WebSocket:
+  ws://localhost:3000/upload-progress?token=xyz123
+
+Metrics Endpoint:
+  http://localhost:3000/metrics
+
+Health Check:
+  http://localhost:3000/health
+
+════════════════════════════════════════════════════════════════════════
+
+EXAMPLE OUTPUT (JSON Format):
+
+{
+  "sessionId": "user-upload-abc123",
+  "startTime": "2024-01-15T14:23:01.000Z",
+  "files": [
+    {
+      "fieldname": "photos",
+      "filename": "vacation-photo.jpg",
+      "status": "uploading",
+      "bytesReceived": 3407872,
+      "bytesTotal": 5242880,
+      "percentage": 68,
+      "bytesPerSecond": 1258291,
+      "eta": 2,
+      "hash": null
+    },
+    {
+      "fieldname": "documents",
+      "filename": "document.pdf",
+      "status": "complete",
+      "bytesReceived": 2097152,
+      "bytesTotal": 2097152,
+      "percentage": 100,
+      "bytesPerSecond": 1497251,
+      "duration": 1.4,
+      "hash": "5d41402abc4b2a76b9719d911017c592",
+      "path": "/uploads/document-20240115-142302.pdf"
+    },
+    {
+      "fieldname": "videos",
+      "filename": "video.mp4",
+      "status": "queued",
+      "bytesReceived": 0,
+      "bytesTotal": 52428800,
+      "percentage": 0
+    }
+  ],
+  "overall": {
+    "bytesReceived": 5505024,
+    "bytesTotal": 14768832,
+    "percentage": 38,
+    "bytesPerSecond": 1258291,
+    "eta": 8,
+    "filesCompleted": 1,
+    "filesInProgress": 1,
+    "filesQueued": 1
+  }
+}
+
+════════════════════════════════════════════════════════════════════════

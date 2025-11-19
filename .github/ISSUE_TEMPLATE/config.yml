@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/yourusername/fluxupload/discussions
+    about: For general discussions, ideas, and community support
+  - name: 📖 Documentation
+    url: https://github.com/yourusername/fluxupload#documentation
+    about: Read the complete documentation
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/yourusername/fluxupload/security/advisories/new
+    about: Report a security vulnerability (private disclosure)
