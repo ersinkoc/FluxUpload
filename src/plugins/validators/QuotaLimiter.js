@@ -39,33 +39,33 @@ class QuotaLimiter extends Plugin {
    * Wrap stream with byte counter
    */
   async process(context) {
-    const limiterStream = new ByteCounterStream({
-      maxBytes: this.maxFileSize,
-      onLimit: () => {
-        const error = new Error(`File size exceeds limit of ${this.maxFileSize} bytes`);
-        error.code = 'LIMIT_FILE_SIZE';
-        throw error;
-      }
+    return new Promise((resolve, reject) => {
+      const limiterStream = new ByteCounterStream({
+        maxBytes: this.maxFileSize
+      });
+
+      // Attach error handler to catch and propagate errors
+      limiterStream.on('error', reject);
+
+      // Track total bytes across all files
+      limiterStream.on('bytes', (count) => {
+        this.totalBytesProcessed += count;
+
+        if (this.maxTotalSize && this.totalBytesProcessed > this.maxTotalSize) {
+          const error = new Error(`Total upload size exceeds limit of ${this.maxTotalSize} bytes`);
+          error.code = 'LIMIT_TOTAL_SIZE';
+          limiterStream.destroy(error);
+        }
+      });
+
+      // Pipe original stream through limiter and mutate context in place
+      // IMPORTANT: Validators must mutate context, not return new object
+      // PipelineManager doesn't capture return value from validators
+      context.stream = context.stream.pipe(limiterStream);
+
+      // Resolve immediately - error handler will catch async errors
+      resolve();
     });
-
-    // Track total bytes across all files
-    limiterStream.on('bytes', (count) => {
-      this.totalBytesProcessed += count;
-
-      if (this.maxTotalSize && this.totalBytesProcessed > this.maxTotalSize) {
-        const error = new Error(`Total upload size exceeds limit of ${this.maxTotalSize} bytes`);
-        error.code = 'LIMIT_TOTAL_SIZE';
-        limiterStream.destroy(error);
-      }
-    });
-
-    // Pipe original stream through limiter
-    const newStream = context.stream.pipe(limiterStream);
-
-    return {
-      ...context,
-      stream: newStream
-    };
   }
 
   /**
@@ -84,7 +84,6 @@ class ByteCounterStream extends Transform {
     super();
 
     this.maxBytes = options.maxBytes;
-    this.onLimit = options.onLimit;
     this.bytesProcessed = 0;
   }
 
@@ -93,18 +92,11 @@ class ByteCounterStream extends Transform {
 
     // Check limit BEFORE processing
     if (this.bytesProcessed > this.maxBytes) {
-      // Destroy immediately - don't pass chunk downstream
-      const error = new Error(`Size limit exceeded: ${this.maxBytes} bytes`);
+      // Don't pass chunk downstream - reject with error
+      const error = new Error(`File size exceeds limit of ${this.maxBytes} bytes`);
       error.code = 'LIMIT_FILE_SIZE';
 
-      if (this.onLimit) {
-        try {
-          this.onLimit();
-        } catch (err) {
-          return callback(err);
-        }
-      }
-
+      // Calling callback with error will properly destroy stream and emit 'error' event
       return callback(error);
     }
 

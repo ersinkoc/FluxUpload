@@ -58,6 +58,9 @@ class BoundaryScanner {
     const keepSize = Math.min(this.boundaryLength - 1, searchBuffer.length - searchStart);
     const newCarryover = searchBuffer.slice(searchBuffer.length - keepSize);
 
+    // Update internal carryover for next scan
+    this.carryover = newCarryover;
+
     // Data to emit (everything except carryover)
     const emitData = parts.length > 0
       ? null // Data already split into parts

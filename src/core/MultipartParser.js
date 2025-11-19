@@ -150,13 +150,10 @@ class MultipartParser extends Writable {
     if (this.state === PARSER_STATE.BODY) {
       if (this.currentStream) {
         // File upload - write to stream
-        // Strip trailing CRLF before boundary (if this is last chunk before boundary)
+        // Strip trailing CRLF before boundary
         let writeData = data;
-        if (isLast && data.length >= 2) {
-          // Check for CRLF at end
-          if (data[data.length - 2] === 0x0D && data[data.length - 1] === 0x0A) {
-            writeData = data.slice(0, -2);
-          }
+        if (data.length >= 2 && data[data.length - 2] === 0x0D && data[data.length - 1] === 0x0A) {
+          writeData = data.slice(0, -2);
         }
 
         if (writeData.length > 0) {
@@ -196,7 +193,12 @@ class MultipartParser extends Writable {
     const isFinal = chunk[afterBoundary] === 0x2D && chunk[afterBoundary + 1] === 0x2D; // "--"
 
     if (isFinal) {
-      // Final boundary - close current part and end
+      // Final boundary - parse headers if we were collecting them
+      if (this.state === PARSER_STATE.HEADER && this.headerBuffer.length > 0) {
+        this._parseHeaders();
+      }
+
+      // Close current part and end
       if (this.currentStream) {
         this.currentStream.end();
         this.currentStream = null;
@@ -231,7 +233,17 @@ class MultipartParser extends Writable {
       case PARSER_STATE.HEADER:
         // We were collecting headers, now parse them
         this._parseHeaders();
-        this.state = PARSER_STATE.BODY;
+        // Boundary found right after headers means part is complete
+        // Close current part and prepare for next
+        if (this.currentStream) {
+          this.currentStream.end();
+          this.currentStream = null;
+        } else if (this.currentPart) {
+          this._emitField();
+        }
+        // Next part's headers will start
+        this.state = PARSER_STATE.HEADER;
+        this.headerBuffer = Buffer.alloc(0);
         break;
     }
   }
@@ -249,6 +261,10 @@ class MultipartParser extends Writable {
 
     const headerText = this.headerBuffer.slice(0, headerEndIndex).toString('utf8');
     const headers = this._parseHeaderLines(headerText);
+
+    // Extract any body data that came after headers in the same buffer
+    const bodyStart = headerEndIndex + 4; // Skip past \r\n\r\n
+    const bodyData = this.headerBuffer.slice(bodyStart);
 
     // Extract Content-Disposition
     const contentDisposition = headers['content-disposition'];
@@ -289,6 +305,16 @@ class MultipartParser extends Writable {
 
     // Clear header buffer
     this.headerBuffer = Buffer.alloc(0);
+
+    // Process any body data that was in the header buffer
+    // This happens when headers and body are in the same chunk
+    if (bodyData.length > 0) {
+      // Temporarily set state to BODY to handle body data
+      const prevState = this.state;
+      this.state = PARSER_STATE.BODY;
+      this._handleBodyData(bodyData);
+      // Note: state may be changed back in _handleBoundary
+    }
   }
 
   /**
@@ -380,7 +406,11 @@ class MultipartParser extends Writable {
    */
   _emitField() {
     if (this.currentPart) {
-      const value = this.currentPart.value.toString('utf8');
+      let value = this.currentPart.value.toString('utf8');
+      // Strip trailing CRLF (added before boundary)
+      if (value.endsWith('\r\n')) {
+        value = value.slice(0, -2);
+      }
       this.emit('field', this.currentPart.name, value);
       this.currentPart = null;
     }

@@ -130,6 +130,7 @@ class FluxUpload {
     this.fields = {};
     this.files = [];
     this.errors = [];
+    this.pendingFileHandlers = []; // Track async file operations
 
     // Extract boundary from Content-Type header
     const contentType = req.headers['content-type'];
@@ -151,8 +152,23 @@ class FluxUpload {
     });
 
     // Handle files
-    parser.on('file', async (fileInfo, stream) => {
-      await this._handleFile(fileInfo, stream);
+    parser.on('file', (fileInfo, stream) => {
+      // Setup error handler immediately to catch stream errors
+      stream.on('error', (error) => {
+        this.errors.push(error);
+        if (this.onError) {
+          this.onError(error);
+        }
+      });
+
+      // Track this async operation
+      const filePromise = this._handleFile(fileInfo, stream).catch(error => {
+        this.errors.push(error);
+        if (this.onError) {
+          this.onError(error);
+        }
+      });
+      this.pendingFileHandlers.push(filePromise);
     });
 
     // Handle errors
@@ -165,7 +181,14 @@ class FluxUpload {
 
     // Wait for parsing to complete
     return new Promise((resolve, reject) => {
-      parser.on('finish', () => {
+      parser.on('finish', async () => {
+        // Wait for all file handlers to complete
+        try {
+          await Promise.all(this.pendingFileHandlers);
+        } catch (error) {
+          // Errors already handled above
+        }
+
         if (this.errors.length > 0) {
           reject(this.errors[0]);
         } else {
