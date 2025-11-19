@@ -580,12 +580,13 @@ uploader.initialize().then(() => {
     console.log(`   URL: http://localhost:${PORT}`);
     console.log('   Framework: FluxUpload (zero-dependency)');
 
-    if (!require.resolve('sharp', { paths: ['.'] })) {
-      console.log('\n⚠️  Sharp not installed - advanced features disabled');
-      console.log('   Install with: npm install sharp\n');
-    } else {
+    try {
+      require.resolve('sharp');
       console.log('   Sharp: Available ✓');
       console.log('   Features: Resize, EXIF, Thumbnails ✓\n');
+    } catch (err) {
+      console.log('\n⚠️  Sharp not installed - advanced features disabled');
+      console.log('   Install with: npm install sharp\n');
     }
   });
 });

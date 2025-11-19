@@ -18,12 +18,12 @@
 const cluster = require('cluster');
 const os = require('os');
 const http = require('http');
-const { FluxUpload } = require('../src');
-const { LocalStorage } = require('../src/storage/LocalStorage');
-const { QuotaLimiter } = require('../src/plugins/validators/QuotaLimiter');
-const { MagicByteDetector } = require('../src/plugins/validators/MagicByteDetector');
+const FluxUpload = require('../src');
+const LocalStorage = require('../src/storage/LocalStorage');
+const QuotaLimiter = require('../src/plugins/validators/QuotaLimiter');
+const MagicByteDetector = require('../src/plugins/validators/MagicByteDetector');
 const RateLimiter = require('../src/plugins/validators/RateLimiter');
-const { StreamHasher } = require('../src/plugins/transformers/StreamHasher');
+const StreamHasher = require('../src/plugins/transformers/StreamHasher');
 const { getLogger, getCollector, HealthCheck } = require('../src/observability');
 
 const PORT = process.env.PORT || 3000;
