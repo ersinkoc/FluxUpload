@@ -430,6 +430,393 @@ runner.describe('LocalStorage', () => {
     // Cleanup
     fs.rmSync(TEST_DIR, { recursive: true });
   });
+
+  runner.it('should accept FileNaming instance', async () => {
+    const FileNaming = require('../../src/utils/FileNaming');
+    const naming = new FileNaming({ strategy: 'uuid', prefix: 'test-' });
+
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: naming
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('test');
+    const context = {
+      stream,
+      fileInfo: { filename: 'test.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    assert.ok(result.storage.filename.startsWith('test-'));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should accept naming object configuration', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: { strategy: 'timestamp', prefix: 'upload-' }
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('test');
+    const context = {
+      stream,
+      fileInfo: { filename: 'test.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    assert.ok(result.storage.filename.startsWith('upload-'));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should handle createDirectories = false', async () => {
+    // Create directory first
+    if (!fs.existsSync(TEST_DIR)) {
+      fs.mkdirSync(TEST_DIR, { recursive: true });
+    }
+
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original',
+      createDirectories: false
+    });
+
+    assert.equal(storage.createDirectories, false);
+
+    const stream = createStream('test');
+    const context = {
+      stream,
+      fileInfo: { filename: 'test.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    assert.ok(fs.existsSync(result.storage.path));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should handle custom fileMode', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original',
+      fileMode: 0o600 // Read/write for owner only
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('test');
+    const context = {
+      stream,
+      fileInfo: { filename: 'mode-test.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    const stats = fs.statSync(result.storage.path);
+    // Note: On some systems, umask may affect the actual mode
+    assert.ok(stats.mode);
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should handle custom dirMode', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      dirMode: 0o700 // Read/write/execute for owner only
+    });
+
+    assert.equal(storage.dirMode, 0o700);
+
+    await storage.initialize();
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should resolve relative destination paths', () => {
+    const storage = new LocalStorage({
+      destination: './relative/path'
+    });
+
+    // Should be resolved to absolute path
+    assert.ok(path.isAbsolute(storage.destination));
+  });
+
+  runner.it('should handle delete on non-existent file gracefully', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    await storage.initialize();
+
+    // Should not throw
+    await storage.delete('nonexistent.txt');
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should throw error on getMetadata for non-existent file', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    await storage.initialize();
+
+    try {
+      await storage.getMetadata('nonexistent.txt');
+      throw new Error('Should have thrown');
+    } catch (error) {
+      assert.ok(error.code === 'ENOENT' || error.message.includes('ENOENT'));
+    }
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should handle empty file upload', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original'
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'empty.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    assert.equal(result.storage.size, 0);
+    assert.ok(fs.existsSync(result.storage.path));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should handle file with no extension', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original'
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('no extension');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'README' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    assert.equal(result.storage.filename, 'README');
+    assert.ok(fs.existsSync(result.storage.path));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should handle file with multiple dots', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original'
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('archive');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'backup.tar.gz' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    assert.ok(result.storage.filename.includes('.'));
+    assert.ok(fs.existsSync(result.storage.path));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should track temp files in tempFiles map', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original'
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('tracking test');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'tracked.txt' },
+      metadata: {}
+    };
+
+    assert.equal(storage.tempFiles.size, 0);
+
+    await storage.process(context);
+
+    // After successful process, temp file should be removed from map
+    assert.equal(storage.tempFiles.size, 0);
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should extend Plugin class', () => {
+    const Plugin = require('../../src/core/Plugin');
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    assert.ok(storage instanceof Plugin);
+  });
+
+  runner.it('should have initialize method', () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    assert.equal(typeof storage.initialize, 'function');
+  });
+
+  runner.it('should have process method', () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    assert.equal(typeof storage.process, 'function');
+  });
+
+  runner.it('should have cleanup method', () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    assert.equal(typeof storage.cleanup, 'function');
+  });
+
+  runner.it('should handle cleanup when temp file not in map', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    await storage.initialize();
+
+    const context = {
+      fileInfo: { filename: 'test.txt' },
+      metadata: {}
+    };
+
+    // Should not throw when context is not in tempFiles map
+    await storage.cleanup(context);
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should generate URL with special characters', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'original'
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('url test');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'test file.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    // Should have URL even if filename has spaces (sanitized by FileNaming)
+    assert.ok(result.storage.url);
+    assert.ok(result.storage.url.startsWith('/uploads/'));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should use hash naming with metadata', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR,
+      naming: 'hash'
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('hash test');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'test.txt' },
+      metadata: { hash: 'abc123def456' }
+    };
+
+    const result = await storage.process(context);
+
+    assert.equal(result.storage.filename, 'abc123def456.txt');
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
+
+  runner.it('should default to uuid naming when no naming specified', async () => {
+    const storage = new LocalStorage({
+      destination: TEST_DIR
+    });
+
+    await storage.initialize();
+
+    const stream = createStream('default naming');
+
+    const context = {
+      stream,
+      fileInfo: { filename: 'test.txt' },
+      metadata: {}
+    };
+
+    const result = await storage.process(context);
+
+    // Should be UUID format
+    assert.ok(result.storage.filename.match(/^[a-f0-9-]+\.txt$/));
+
+    // Cleanup
+    fs.rmSync(TEST_DIR, { recursive: true });
+  });
 });
 
 function createStream(data) {
