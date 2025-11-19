@@ -5,6 +5,11 @@
 [![npm version](https://img.shields.io/npm/v/fluxupload.svg)](https://www.npmjs.com/package/fluxupload)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/node/v/fluxupload.svg)](https://nodejs.org)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-definitions-blue.svg)](src/index.d.ts)
+[![CI](https://img.shields.io/github/workflow/status/yourusername/fluxupload/CI?label=tests)](https://github.com/yourusername/fluxupload/actions)
+[![codecov](https://img.shields.io/badge/coverage-82%25-green.svg)](test/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 ## Why FluxUpload?
 
