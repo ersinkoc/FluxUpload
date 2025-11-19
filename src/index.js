@@ -15,6 +15,7 @@ const QuotaLimiter = require('./plugins/validators/QuotaLimiter');
 const MagicByteDetector = require('./plugins/validators/MagicByteDetector');
 const ImageDimensionProbe = require('./plugins/validators/ImageDimensionProbe');
 const RateLimiter = require('./plugins/validators/RateLimiter');
+const CsrfProtection = require('./plugins/validators/CsrfProtection');
 
 // Transformers
 const StreamHasher = require('./plugins/transformers/StreamHasher');
@@ -28,6 +29,7 @@ const S3Storage = require('./storage/S3Storage');
 const FileNaming = require('./utils/FileNaming');
 const MimeDetector = require('./utils/MimeDetector');
 const AwsSignatureV4 = require('./utils/AwsSignatureV4');
+const SignedUrls = require('./utils/SignedUrls');
 
 // Observability
 const observability = require('./observability');
@@ -49,6 +51,7 @@ module.exports.QuotaLimiter = QuotaLimiter;
 module.exports.MagicByteDetector = MagicByteDetector;
 module.exports.ImageDimensionProbe = ImageDimensionProbe;
 module.exports.RateLimiter = RateLimiter;
+module.exports.CsrfProtection = CsrfProtection;
 
 // Transformers
 module.exports.StreamHasher = StreamHasher;
@@ -62,6 +65,7 @@ module.exports.S3Storage = S3Storage;
 module.exports.FileNaming = FileNaming;
 module.exports.MimeDetector = MimeDetector;
 module.exports.AwsSignatureV4 = AwsSignatureV4;
+module.exports.SignedUrls = SignedUrls;
 
 // Observability (export entire module for convenience)
 module.exports.observability = observability;
