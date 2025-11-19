@@ -32,7 +32,10 @@
     "example:express": "node examples/express-example.js",
     "example:fastify": "node examples/fastify-example.js",
     "example:advanced": "node examples/advanced-image-processing.js",
-    "example:monitoring": "node examples/monitoring-example.js"
+    "example:monitoring": "node examples/monitoring-example.js",
+    "example:websocket": "node examples/websocket-progress-example.js",
+    "example:cluster": "node examples/cluster-example.js",
+    "example:security": "node examples/security-example.js"
   },
   "repository": {
     "type": "git",
