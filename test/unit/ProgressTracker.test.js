@@ -49,3 +49,24 @@ if (require.main === module) {
 }
 
 module.exports = runner;
+
+  runner.it('should create progress stream', () => {
+    const tracker = new ProgressTracker();
+    const stream = tracker.createProgressStream({
+      filename: 'test.txt',
+      totalBytes: 1000
+    });
+    assert.ok(stream);
+    assert.ok(stream.readable);
+  });
+
+  runner.it('should accept emit interval option', () => {
+    const tracker = new ProgressTracker({ emitInterval: 100 });
+    assert.ok(tracker);
+  });
+
+  runner.it('should have EventEmitter methods', () => {
+    const tracker = new ProgressTracker();
+    assert.ok(typeof tracker.on === 'function');
+    assert.ok(typeof tracker.emit === 'function');
+  });
