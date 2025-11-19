@@ -1,0 +1,46 @@
+{
+  "name": "fluxupload",
+  "version": "1.0.0",
+  "description": "Zero-dependency, stream-first file upload handler for Node.js with plugin-based architecture",
+  "main": "src/index.js",
+  "keywords": [
+    "upload",
+    "file-upload",
+    "multipart",
+    "stream",
+    "s3",
+    "zero-dependency",
+    "no-dependencies",
+    "express",
+    "multer-alternative",
+    "busboy-alternative"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "scripts": {
+    "example:basic": "node examples/basic-usage.js",
+    "example:s3": "node examples/s3-upload.js",
+    "test": "echo \"Tests not yet implemented\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/fluxupload.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/fluxupload/issues"
+  },
+  "homepage": "https://github.com/yourusername/fluxupload#readme",
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE",
+    "ARCHITECTURE.md",
+    "API.md"
+  ],
+  "dependencies": {},
+  "devDependencies": {},
+  "peerDependencies": {}
+}
