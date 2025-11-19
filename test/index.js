@@ -22,6 +22,7 @@ async function runAllTests() {
 
     // Unit tests - Core
     { name: 'MultipartParser', path: './unit/MultipartParser.test.js' },
+    { name: 'PipelineManager', path: './unit/PipelineManager.test.js' },
 
     // Unit tests - Validators
     { name: 'RateLimiter', path: './unit/RateLimiter.test.js' },
