@@ -21,9 +21,13 @@
     "node": ">=12.0.0"
   },
   "scripts": {
+    "test": "node test/index.js",
+    "test:unit": "node test/unit/*.test.js",
+    "test:integration": "node test/integration/*.test.js",
     "example:basic": "node examples/basic-usage.js",
     "example:s3": "node examples/s3-upload.js",
-    "test": "echo \"Tests not yet implemented\" && exit 1"
+    "example:express": "node examples/express-example.js",
+    "example:fastify": "node examples/fastify-example.js"
   },
   "repository": {
     "type": "git",
@@ -35,10 +39,15 @@
   "homepage": "https://github.com/yourusername/fluxupload#readme",
   "files": [
     "src/",
+    "examples/",
+    "test/",
     "README.md",
     "LICENSE",
     "ARCHITECTURE.md",
-    "API.md"
+    "API.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "PROJECT_SUMMARY.md"
   ],
   "dependencies": {},
   "devDependencies": {},
