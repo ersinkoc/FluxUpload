@@ -137,8 +137,14 @@ async function benchmarkMulter(fileSize) {
   try {
     const multer = require('multer');
 
+    // Create multer upload directory
+    const multerDir = path.join(UPLOAD_DIR, 'multer');
+    if (!fs.existsSync(multerDir)) {
+      fs.mkdirSync(multerDir, { recursive: true });
+    }
+
     const upload = multer({
-      dest: path.join(UPLOAD_DIR, 'multer')
+      dest: multerDir
     });
 
     const middleware = upload.single('file');
@@ -177,6 +183,12 @@ async function benchmarkBusboy(fileSize) {
   try {
     const Busboy = require('busboy');
 
+    // Create busboy upload directory
+    const busboyDir = path.join(UPLOAD_DIR, 'busboy');
+    if (!fs.existsSync(busboyDir)) {
+      fs.mkdirSync(busboyDir, { recursive: true });
+    }
+
     return async (req) => {
       const tracker = new MemoryTracker();
       tracker.startTracking();
@@ -186,10 +198,17 @@ async function benchmarkBusboy(fileSize) {
       return new Promise((resolve, reject) => {
         const busboy = Busboy({ headers: req.headers });
 
-        busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-          const outputPath = path.join(UPLOAD_DIR, 'busboy', filename.filename || 'upload');
+        busboy.on('file', (fieldname, file, info) => {
+          // Busboy v1.0+ API: info object contains filename, encoding, mimeType
+          const filename = info.filename || 'upload';
+          const outputPath = path.join(busboyDir, filename);
           const writeStream = fs.createWriteStream(outputPath);
+
           file.pipe(writeStream);
+
+          writeStream.on('error', (err) => {
+            resolve({ error: err.message, success: false });
+          });
         });
 
         busboy.on('finish', () => {
@@ -216,7 +235,13 @@ async function benchmarkBusboy(fileSize) {
 
 async function benchmarkFormidable(fileSize) {
   try {
-    const formidable = require('formidable');
+    const { formidable } = require('formidable');
+
+    // Create formidable upload directory
+    const formidableDir = path.join(UPLOAD_DIR, 'formidable');
+    if (!fs.existsSync(formidableDir)) {
+      fs.mkdirSync(formidableDir, { recursive: true });
+    }
 
     return async (req) => {
       const tracker = new MemoryTracker();
@@ -226,7 +251,7 @@ async function benchmarkFormidable(fileSize) {
 
       return new Promise((resolve) => {
         const form = formidable({
-          uploadDir: path.join(UPLOAD_DIR, 'formidable'),
+          uploadDir: formidableDir,
           keepExtensions: true
         });
 
@@ -299,6 +324,12 @@ async function runBenchmark(name, benchmarkFn, fileSize, iterations = 3) {
     const mockReq = createMockRequest(testFile);
 
     const handler = await benchmarkFn(fileSize);
+
+    // Check if library is available
+    if (!handler) {
+      return null; // Library not installed
+    }
+
     const result = await handler(mockReq);
 
     if (result.success) {

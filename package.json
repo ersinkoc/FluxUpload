@@ -97,7 +97,9 @@
     "MIGRATION.md",
     "PROJECT_SUMMARY.md"
   ],
-  "dependencies": {},
-  "devDependencies": {},
-  "peerDependencies": {}
+  "devDependencies": {
+    "busboy": "^1.6.0",
+    "formidable": "^3.5.4",
+    "multer": "^2.0.2"
+  }
 }
