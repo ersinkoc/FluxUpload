@@ -560,6 +560,883 @@ runner.describe('MultipartParser', () => {
       stream.pipe(parser);
     });
   });
+
+  runner.it('should handle preamble data before first boundary', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      'This is preamble data that should be ignored',
+      'Multiple lines of preamble',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field1"',
+      '',
+      'value1',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let fieldReceived = false;
+
+      parser.on('field', (name, value) => {
+        fieldReceived = true;
+        assert.equal(name, 'field1');
+        assert.equal(value, 'value1');
+      });
+
+      parser.on('finish', () => {
+        try {
+          assert.ok(fieldReceived);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle epilogue data after final boundary', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field1"',
+      '',
+      'value1',
+      `--${boundary}--`,
+      'This is epilogue data after the final boundary',
+      'Should be ignored'
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let fieldReceived = false;
+
+      parser.on('field', (name, value) => {
+        fieldReceived = true;
+        assert.equal(name, 'field1');
+      });
+
+      parser.on('finish', () => {
+        try {
+          assert.ok(fieldReceived);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should enforce files count limit', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({
+      boundary,
+      limits: { files: 2 }
+    });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file1"; filename="test1.txt"',
+      '',
+      'content1',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file2"; filename="test2.txt"',
+      '',
+      'content2',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file3"; filename="test3.txt"',
+      '',
+      'content3',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let errorReceived = false;
+      let limitEmitted = false;
+
+      parser.on('error', (err) => {
+        errorReceived = true;
+        assert.ok(err.message.includes('files') || err.message.includes('Too many'));
+      });
+
+      parser.on('limit', (type, limit) => {
+        limitEmitted = true;
+        assert.equal(type, 'files');
+        assert.equal(limit, 2);
+      });
+
+      parser.on('file', (fileInfo, stream) => {
+        stream.resume(); // Consume stream
+      });
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+
+      setTimeout(() => {
+        try {
+          assert.ok(errorReceived || limitEmitted);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      }, 100);
+    });
+  });
+
+  runner.it('should enforce field name size limit', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({
+      boundary,
+      limits: { fieldNameSize: 10 }
+    });
+
+    const longFieldName = 'x'.repeat(20);
+    const body = [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="${longFieldName}"`,
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let errorReceived = false;
+
+      parser.on('error', (err) => {
+        errorReceived = true;
+        assert.ok(err.message.includes('Field name'));
+        resolve();
+      });
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+
+      setTimeout(() => {
+        if (!errorReceived) {
+          reject(new Error('Expected field name size limit error'));
+        }
+      }, 100);
+    });
+  });
+
+  runner.it('should throw on missing Content-Disposition header', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Type: text/plain',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('error', (err) => {
+        assert.ok(err.message.includes('Content-Disposition'));
+        resolve();
+      });
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+
+      setTimeout(() => {
+        reject(new Error('Expected Content-Disposition error'));
+      }, 100);
+    });
+  });
+
+  runner.it('should handle escaped quotes in field name', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field\\"with\\"quotes"',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(name, 'field"with"quotes');
+        assert.equal(value, 'value');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle escaped quotes in filename', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="test\\"file\\".txt"',
+      '',
+      'content',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.filename, 'test"file".txt');
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle unquoted field name', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name=username',
+      '',
+      'john',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(name, 'username');
+        assert.equal(value, 'john');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle unquoted filename', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name=file; filename=test.txt',
+      '',
+      'content',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.filename, 'test.txt');
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should strip trailing CRLF from field values', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field"',
+      '',
+      'value without extra CRLF',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        // Join adds \r\n before boundary, parser should strip it
+        assert.equal(value, 'value without extra CRLF');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should emit limit event on file size exceeded', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({
+      boundary,
+      limits: { fileSize: 50 }
+    });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="large.txt"',
+      '',
+      'x'.repeat(100),
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let limitEmitted = false;
+
+      parser.on('limit', (type, limit) => {
+        limitEmitted = true;
+        assert.equal(type, 'fileSize');
+        assert.equal(limit, 50);
+      });
+
+      parser.on('file', (fileInfo, stream) => {
+        stream.on('error', () => {
+          // Expected error on stream
+        });
+        stream.resume();
+      });
+
+      parser.on('error', () => {
+        // Error expected
+      });
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+
+      setTimeout(() => {
+        try {
+          assert.ok(limitEmitted);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      }, 100);
+    });
+  });
+
+  runner.it('should emit limit event on field size exceeded', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({
+      boundary,
+      limits: { fieldSize: 50 }
+    });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field"',
+      '',
+      'x'.repeat(100),
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let limitEmitted = false;
+
+      parser.on('limit', (type, limit) => {
+        limitEmitted = true;
+        assert.equal(type, 'fieldSize');
+        assert.equal(limit, 50);
+      });
+
+      parser.on('error', () => {
+        // Error expected
+      });
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+
+      setTimeout(() => {
+        try {
+          assert.ok(limitEmitted);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      }, 100);
+    });
+  });
+
+  runner.it('should emit limit event on field name size exceeded', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({
+      boundary,
+      limits: { fieldNameSize: 5 }
+    });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="verylongfieldname"',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let limitEmitted = false;
+
+      parser.on('limit', (type, limit) => {
+        limitEmitted = true;
+        assert.equal(type, 'fieldNameSize');
+        assert.equal(limit, 5);
+      });
+
+      parser.on('error', () => {
+        // Error expected
+      });
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+
+      setTimeout(() => {
+        try {
+          assert.ok(limitEmitted);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      }, 100);
+    });
+  });
+
+  runner.it('should handle empty file upload', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="empty.txt"',
+      'Content-Type: text/plain',
+      '',
+      '',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      let fileReceived = false;
+
+      parser.on('file', (fileInfo, stream) => {
+        fileReceived = true;
+        assert.equal(fileInfo.filename, 'empty.txt');
+
+        const chunks = [];
+        stream.on('data', chunk => chunks.push(chunk));
+        stream.on('end', () => {
+          const content = Buffer.concat(chunks);
+          assert.equal(content.length, 0);
+        });
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        try {
+          assert.ok(fileReceived);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should parse MIME type from Content-Type header', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="image"; filename="photo.jpg"',
+      'Content-Type: image/jpeg',
+      '',
+      'fake-image-data',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.mimeType, 'image/jpeg');
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should default MIME type to application/octet-stream', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="data.bin"',
+      '',
+      'binary-data',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.mimeType, 'application/octet-stream');
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle multiple headers per part', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="doc.pdf"',
+      'Content-Type: application/pdf',
+      'Content-Transfer-Encoding: binary',
+      'X-Custom-Header: custom-value',
+      '',
+      'pdf-content',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.filename, 'doc.pdf');
+        assert.equal(fileInfo.mimeType, 'application/pdf');
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle very long boundary', async () => {
+    const boundary = '-'.repeat(70); // RFC allows up to 70 chars
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field"',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(name, 'field');
+        assert.equal(value, 'value');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle boundary with special characters', async () => {
+    const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field"',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(value, 'value');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle field with multiline value', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    // Build body manually to control CRLF precisely
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\n`),
+      Buffer.from('Content-Disposition: form-data; name="field"\r\n\r\n'),
+      Buffer.from('line1\r\nline2\r\nline3'),
+      Buffer.from(`\r\n--${boundary}--\r\n`)
+    ]);
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        // Should strip trailing CRLF before boundary, but preserve internal CRLFs
+        assert.equal(value, 'line1\r\nline2\r\nline3');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle headers with whitespace variations', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition:    form-data;   name="field"   ',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(name, 'field');
+        assert.equal(value, 'value');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle case-insensitive headers', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'CONTENT-DISPOSITION: form-data; name="field"',
+      'CONTENT-TYPE: text/plain',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(name, 'field');
+        assert.equal(value, 'value');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle Content-Disposition parameters in any order', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; filename="test.txt"; name="file"',
+      '',
+      'content',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.fieldName, 'file');
+        assert.equal(fileInfo.filename, 'test.txt');
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle UTF-8 field values', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const utf8Value = 'Hello 世界 🌍';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="message"',
+      '',
+      utf8Value,
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        assert.equal(value, utf8Value);
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle UTF-8 filenames', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const utf8Filename = '文档.txt';
+    const body = [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="file"; filename="${utf8Filename}"`,
+      '',
+      'content',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('file', (fileInfo, stream) => {
+        assert.equal(fileInfo.filename, utf8Filename);
+        stream.resume();
+      });
+
+      parser.on('finish', async () => {
+        await new Promise(r => setImmediate(r));
+        resolve();
+      });
+
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
+
+  runner.it('should handle line without colon in headers', async () => {
+    const boundary = 'TestBoundary';
+    const parser = new MultipartParser({ boundary });
+
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="field"',
+      'Invalid header line without colon',
+      '',
+      'value',
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+
+    return new Promise((resolve, reject) => {
+      parser.on('field', (name, value) => {
+        // Should still parse successfully, ignoring invalid header
+        assert.equal(name, 'field');
+        assert.equal(value, 'value');
+      });
+
+      parser.on('finish', resolve);
+      parser.on('error', reject);
+
+      const stream = createStream(body);
+      stream.pipe(parser);
+    });
+  });
 });
 
 function createStream(data) {
