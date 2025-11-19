@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Zero-dependency, stream-first file upload handler for Node.js with plugin-based architecture",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "keywords": [
     "upload",
     "file-upload",
@@ -24,10 +25,13 @@
     "test": "node test/index.js",
     "test:unit": "node test/unit/*.test.js",
     "test:integration": "node test/integration/*.test.js",
+    "benchmark": "node --expose-gc benchmark/index.js",
+    "benchmark:simple": "node benchmark/index.js",
     "example:basic": "node examples/basic-usage.js",
     "example:s3": "node examples/s3-upload.js",
     "example:express": "node examples/express-example.js",
-    "example:fastify": "node examples/fastify-example.js"
+    "example:fastify": "node examples/fastify-example.js",
+    "example:advanced": "node examples/advanced-image-processing.js"
   },
   "repository": {
     "type": "git",
