@@ -11,9 +11,9 @@
  */
 
 const http = require('http');
-const { FluxUpload } = require('../src');
-const { LocalStorage } = require('../src/storage/LocalStorage');
-const { QuotaLimiter } = require('../src/plugins/validators/QuotaLimiter');
+const FluxUpload = require('../src');
+const LocalStorage = require('../src/storage/LocalStorage');
+const QuotaLimiter = require('../src/plugins/validators/QuotaLimiter');
 const CsrfProtection = require('../src/plugins/validators/CsrfProtection');
 const RateLimiter = require('../src/plugins/validators/RateLimiter');
 const SignedUrls = require('../src/utils/SignedUrls');

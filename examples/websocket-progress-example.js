@@ -17,11 +17,11 @@
 
 const http = require('http');
 const crypto = require('crypto');
-const { FluxUpload } = require('../src');
-const { LocalStorage } = require('../src/storage/LocalStorage');
-const { QuotaLimiter } = require('../src/plugins/validators/QuotaLimiter');
-const { MagicByteDetector } = require('../src/plugins/validators/MagicByteDetector');
-const { StreamHasher } = require('../src/plugins/transformers/StreamHasher');
+const FluxUpload = require('../src');
+const LocalStorage = require('../src/storage/LocalStorage');
+const QuotaLimiter = require('../src/plugins/validators/QuotaLimiter');
+const MagicByteDetector = require('../src/plugins/validators/MagicByteDetector');
+const StreamHasher = require('../src/plugins/transformers/StreamHasher');
 const { ProgressTracker } = require('../src/observability');
 
 // Initialize progress tracker
