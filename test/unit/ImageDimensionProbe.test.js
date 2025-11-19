@@ -368,6 +368,444 @@ runner.describe('ImageDimensionProbe', () => {
 
     assert.deepEqual(output, fullData);
   });
+
+  runner.it('should handle WebP VP8 format', async () => {
+    const probe = new ImageDimensionProbe();
+
+    // Create WebP VP8 header
+    const buffer = Buffer.alloc(40);
+    buffer.write('RIFF', 0);
+    buffer.writeUInt32LE(32, 4);
+    buffer.write('WEBP', 8);
+    buffer.write('VP8 ', 12);
+    buffer.writeUInt32LE(20, 16);
+    buffer.writeUInt16LE(800, 26);
+    buffer.writeUInt16LE(600, 28);
+
+    const stream = createStream(buffer);
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/webp' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.ok(result.metadata.dimensions);
+    assert.equal(result.metadata.dimensions.width, 800);
+    assert.equal(result.metadata.dimensions.height, 600);
+  });
+
+  runner.it('should handle WebP VP8L format', async () => {
+    const probe = new ImageDimensionProbe();
+
+    const buffer = Buffer.alloc(40);
+    buffer.write('RIFF', 0);
+    buffer.writeUInt32LE(32, 4);
+    buffer.write('WEBP', 8);
+    buffer.write('VP8L', 12);
+    buffer.writeUInt32LE(20, 16);
+    // Width and height encoded in bits
+    const bits = ((500 - 1) & 0x3FFF) | (((400 - 1) & 0x3FFF) << 14);
+    buffer.writeUInt32LE(bits, 21);
+
+    const stream = createStream(buffer);
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/webp' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.ok(result.metadata.dimensions);
+    assert.equal(result.metadata.dimensions.width, 500);
+    assert.equal(result.metadata.dimensions.height, 400);
+  });
+
+  runner.it('should handle WebP VP8X format', async () => {
+    const probe = new ImageDimensionProbe();
+
+    const buffer = Buffer.alloc(40);
+    buffer.write('RIFF', 0);
+    buffer.writeUInt32LE(32, 4);
+    buffer.write('WEBP', 8);
+    buffer.write('VP8X', 12);
+    buffer.writeUInt32LE(20, 16);
+    // Width-1 and height-1 in 24 bits
+    buffer.writeUInt32LE(1024 - 1, 24);
+    buffer.writeUInt32LE(768 - 1, 27);
+
+    const stream = createStream(buffer);
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/webp' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.ok(result.metadata.dimensions);
+    assert.equal(result.metadata.dimensions.width, 1024);
+    assert.equal(result.metadata.dimensions.height, 768);
+  });
+
+  runner.it('should handle negative BMP dimensions', async () => {
+    const probe = new ImageDimensionProbe();
+
+    const buffer = Buffer.alloc(54);
+    buffer.write('BM', 0);
+    buffer.writeUInt32LE(54, 2);
+    buffer.writeUInt32LE(0, 6);
+    buffer.writeUInt32LE(54, 10);
+    buffer.writeUInt32LE(40, 14);
+    // Negative dimensions (bottom-up DIB)
+    buffer.writeInt32LE(-640, 18);
+    buffer.writeInt32LE(-480, 22);
+
+    const stream = createStream(buffer);
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/bmp' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    // Should use absolute values
+    assert.equal(result.metadata.dimensions.width, 640);
+    assert.equal(result.metadata.dimensions.height, 480);
+  });
+
+  runner.it('should handle JPEG with multiple markers', async () => {
+    const probe = new ImageDimensionProbe();
+
+    const buffer = Buffer.alloc(150);
+    // SOI
+    buffer.writeUInt16BE(0xFFD8, 0);
+    // APP0
+    buffer.writeUInt16BE(0xFFE0, 2);
+    buffer.writeUInt16BE(16, 4);
+    // APP1
+    buffer.writeUInt16BE(0xFFE1, 22);
+    buffer.writeUInt16BE(30, 24);
+    // SOF0 (what we're looking for)
+    buffer.writeUInt16BE(0xFFC0, 56);
+    buffer.writeUInt16BE(17, 58);
+    buffer.writeUInt8(8, 60);
+    buffer.writeUInt16BE(1080, 61);
+    buffer.writeUInt16BE(1920, 63);
+
+    const stream = createStream(buffer);
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/jpeg' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 1920);
+    assert.equal(result.metadata.dimensions.height, 1080);
+  });
+
+  runner.it('should handle exact boundary width', async () => {
+    const probe = new ImageDimensionProbe({
+      minWidth: 1920,
+      maxWidth: 1920
+    });
+
+    const imageData = createPNGHeader(1920, 1080);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 1920);
+  });
+
+  runner.it('should handle exact boundary height', async () => {
+    const probe = new ImageDimensionProbe({
+      minHeight: 1080,
+      maxHeight: 1080
+    });
+
+    const imageData = createPNGHeader(1920, 1080);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.height, 1080);
+  });
+
+  runner.it('should default bytesToRead to 8192', () => {
+    const probe = new ImageDimensionProbe();
+    assert.equal(probe.bytesToRead, 8192);
+  });
+
+  runner.it('should accept custom bytesToRead', () => {
+    const probe = new ImageDimensionProbe({ bytesToRead: 16384 });
+    assert.equal(probe.bytesToRead, 16384);
+  });
+
+  runner.it('should handle very small images', async () => {
+    const probe = new ImageDimensionProbe();
+    const imageData = createPNGHeader(1, 1);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 1);
+    assert.equal(result.metadata.dimensions.height, 1);
+  });
+
+  runner.it('should handle very large dimensions', async () => {
+    const probe = new ImageDimensionProbe();
+    const imageData = createPNGHeader(65535, 65535);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 65535);
+    assert.equal(result.metadata.dimensions.height, 65535);
+  });
+
+  runner.it('should reject 4K image when max is 1080p', async () => {
+    const probe = new ImageDimensionProbe({
+      maxWidth: 1920,
+      maxHeight: 1080
+    });
+
+    const imageData = createPNGHeader(3840, 2160);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+
+    try {
+      await consumeStream(result.stream);
+      throw new Error('Should have rejected 4K image');
+    } catch (error) {
+      assert.ok(error.message.includes('3840') || error.message.includes('exceeds'));
+    }
+  });
+
+  runner.it('should handle chunked stream data', async () => {
+    const probe = new ImageDimensionProbe();
+    const imageData = createPNGHeader(800, 600);
+
+    // Split data into small chunks
+    const stream = new Readable();
+    for (let i = 0; i < imageData.length; i += 5) {
+      stream.push(imageData.slice(i, i + 5));
+    }
+    stream.push(null);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 800);
+    assert.equal(result.metadata.dimensions.height, 600);
+  });
+
+  runner.it('should handle unsupported image format', async () => {
+    const probe = new ImageDimensionProbe();
+    const stream = createStream(Buffer.from('SVG or other format'));
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/svg+xml' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    // Should not have dimensions for unsupported format
+    assert.equal(result.metadata.dimensions, undefined);
+  });
+
+  runner.it('should extend Plugin class', () => {
+    const Plugin = require('../../src/core/Plugin');
+    const probe = new ImageDimensionProbe();
+    assert.ok(probe instanceof Plugin);
+  });
+
+  runner.it('should have correct plugin name', () => {
+    const probe = new ImageDimensionProbe();
+    assert.equal(probe.name, 'ImageDimensionProbe');
+  });
+
+  runner.it('should handle GIF89a format', async () => {
+    const probe = new ImageDimensionProbe();
+    const imageData = createGIFHeader(320, 240);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/gif' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 320);
+    assert.equal(result.metadata.dimensions.height, 240);
+  });
+
+  runner.it('should handle GIF87a format', async () => {
+    const probe = new ImageDimensionProbe();
+
+    const buffer = Buffer.alloc(13);
+    buffer.write('GIF87a', 0);
+    buffer.writeUInt16LE(640, 6);
+    buffer.writeUInt16LE(480, 8);
+
+    const stream = createStream(buffer);
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/gif' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 640);
+    assert.equal(result.metadata.dimensions.height, 480);
+  });
+
+  runner.it('should skip probe when no MIME type', async () => {
+    const probe = new ImageDimensionProbe({
+      minWidth: 100,
+      maxWidth: 1000
+    });
+
+    const stream = createStream(Buffer.from('data'));
+
+    const context = {
+      stream,
+      fileInfo: {},
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions, undefined);
+  });
+
+  runner.it('should handle zero min dimensions', async () => {
+    const probe = new ImageDimensionProbe({
+      minWidth: 0,
+      minHeight: 0
+    });
+
+    const imageData = createPNGHeader(10, 10);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 10);
+    assert.equal(result.metadata.dimensions.height, 10);
+  });
+
+  runner.it('should handle Infinity max dimensions', async () => {
+    const probe = new ImageDimensionProbe({
+      maxWidth: Infinity,
+      maxHeight: Infinity
+    });
+
+    const imageData = createPNGHeader(50000, 50000);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 50000);
+    assert.equal(result.metadata.dimensions.height, 50000);
+  });
+
+  runner.it('should validate all dimension constraints', async () => {
+    const probe = new ImageDimensionProbe({
+      minWidth: 200,
+      maxWidth: 2000,
+      minHeight: 200,
+      maxHeight: 2000
+    });
+
+    const imageData = createPNGHeader(500, 500);
+    const stream = createStream(imageData);
+
+    const context = {
+      stream,
+      fileInfo: { mimeType: 'image/png' },
+      metadata: {}
+    };
+
+    const result = await probe.process(context);
+    await consumeStream(result.stream);
+
+    assert.equal(result.metadata.dimensions.width, 500);
+    assert.equal(result.metadata.dimensions.height, 500);
+  });
 });
 
 function createStream(data) {
