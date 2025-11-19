@@ -58,6 +58,8 @@
     "OBSERVABILITY.md",
     "PERFORMANCE.md",
     "TROUBLESHOOTING.md",
+    "RECIPES.md",
+    "MIGRATION.md",
     "PROJECT_SUMMARY.md"
   ],
   "dependencies": {},
