@@ -269,6 +269,417 @@ runner.describe('RateLimiter', () => {
     // This is implementation-dependent
     assert.ok(limiter.buckets.size >= 1);
   });
+
+  runner.it('should refund token on success with skipSuccessfulRequests', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 2,
+      windowMs: 1000,
+      skipSuccessfulRequests: true
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    // Consume 2 tokens
+    const ctx1 = await limiter.process({ ...mockContext });
+    const ctx2 = await limiter.process({ ...mockContext });
+
+    // Cleanup without error (success)
+    await limiter.cleanup(ctx1, null);
+    await limiter.cleanup(ctx2, null);
+
+    // Should have refunded tokens, allowing more requests
+    const result = await limiter.process({ ...mockContext });
+    assert.ok(result);
+  });
+
+  runner.it('should refund token on failure with skipFailedRequests', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 2,
+      windowMs: 1000,
+      skipFailedRequests: true
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    // Consume 2 tokens
+    const ctx1 = await limiter.process({ ...mockContext });
+    const ctx2 = await limiter.process({ ...mockContext });
+
+    // Cleanup with error (failure)
+    await limiter.cleanup(ctx1, new Error('Upload failed'));
+    await limiter.cleanup(ctx2, new Error('Upload failed'));
+
+    // Should have refunded tokens
+    const result = await limiter.process({ ...mockContext });
+    assert.ok(result);
+  });
+
+  runner.it('should not refund tokens by default', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 2,
+      windowMs: 1000
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    // Consume all tokens
+    const ctx1 = await limiter.process({ ...mockContext });
+    const ctx2 = await limiter.process({ ...mockContext });
+
+    // Cleanup (no refund expected)
+    await limiter.cleanup(ctx1, null);
+
+    // Should still be blocked
+    await assert.rejects(
+      limiter.process({ ...mockContext }),
+      'limit exceeded'
+    );
+  });
+
+  runner.it('should use custom handler', async () => {
+    let handlerCalled = false;
+    let handlerInfo = null;
+
+    const limiter = new RateLimiter({
+      maxRequests: 1,
+      windowMs: 1000,
+      handler: (context, info) => {
+        handlerCalled = true;
+        handlerInfo = info;
+        return context; // Allow request anyway
+      }
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    // Consume token
+    await limiter.process({ ...mockContext });
+
+    // Next request should trigger handler
+    const result = await limiter.process({ ...mockContext });
+
+    assert.ok(handlerCalled);
+    assert.ok(handlerInfo.waitTime > 0);
+    assert.equal(handlerInfo.limit, 1);
+    assert.ok(result);
+  });
+
+  runner.it('should handle unknown IP address', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 2,
+      windowMs: 1000
+    });
+
+    const mockContext = {
+      request: {
+        socket: {},
+        headers: {}
+      }
+    };
+
+    // Should use 'unknown' as key
+    await limiter.process({ ...mockContext });
+    await limiter.process({ ...mockContext });
+
+    await assert.rejects(
+      limiter.process({ ...mockContext }),
+      'limit exceeded'
+    );
+  });
+
+  runner.it('should handle burst traffic', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 10,
+      windowMs: 1000
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    // Burst of 10 requests should all succeed
+    const promises = [];
+    for (let i = 0; i < 10; i++) {
+      promises.push(limiter.process({ ...mockContext }));
+    }
+
+    const results = await Promise.all(promises);
+    assert.equal(results.length, 10);
+
+    // 11th should fail
+    await assert.rejects(
+      limiter.process({ ...mockContext }),
+      'limit exceeded'
+    );
+  });
+
+  runner.it('should track separate buckets for different IPs', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 2,
+      windowMs: 1000
+    });
+
+    const ip1Context = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    const ip2Context = {
+      request: {
+        socket: { remoteAddress: '192.168.1.1' },
+        headers: {}
+      }
+    };
+
+    // IP1 consumes its limit
+    await limiter.process({ ...ip1Context });
+    await limiter.process({ ...ip1Context });
+
+    // IP1 should be blocked
+    await assert.rejects(
+      limiter.process({ ...ip1Context }),
+      'limit exceeded'
+    );
+
+    // IP2 should still work
+    const result = await limiter.process({ ...ip2Context });
+    assert.ok(result);
+  });
+
+  runner.it('should return status for non-existent key', () => {
+    const limiter = new RateLimiter({
+      maxRequests: 5,
+      windowMs: 1000
+    });
+
+    const status = limiter.getStatus('non-existent-ip');
+    assert.equal(status.requests, 0);
+    assert.equal(status.remaining, 5);
+    assert.equal(status.limit, 5);
+    assert.ok(status.resetTime > Date.now());
+  });
+
+  runner.it('should store bucket in context', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 5,
+      windowMs: 1000
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    const result = await limiter.process({ ...mockContext });
+
+    assert.ok(result.rateLimitBucket);
+    assert.equal(result.rateLimitKey, '127.0.0.1');
+  });
+
+  runner.it('should extend Plugin class', () => {
+    const Plugin = require('../../src/core/Plugin');
+    const limiter = new RateLimiter();
+
+    assert.ok(limiter instanceof Plugin);
+  });
+
+  runner.it('should have correct plugin name', () => {
+    const limiter = new RateLimiter();
+    assert.equal(limiter.name, 'RateLimiter');
+  });
+
+  runner.it('should calculate refill rate correctly', () => {
+    const limiter = new RateLimiter({
+      maxRequests: 100,
+      windowMs: 60000 // 1 minute
+    });
+
+    // 100 requests per 60 seconds = 100/60 per second
+    const expectedRate = 100 / 60;
+    assert.equal(limiter.refillRate, expectedRate);
+  });
+
+  runner.it('should cleanup only when interval elapsed', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 5,
+      windowMs: 1000,
+      cleanupInterval: 10000 // 10 seconds
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    const initialCleanupTime = limiter.lastCleanup;
+
+    // Make a request
+    await limiter.process({ ...mockContext });
+
+    // Cleanup shouldn't have run yet
+    assert.equal(limiter.lastCleanup, initialCleanupTime);
+  });
+
+  runner.it('should handle wait time calculation', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 1,
+      windowMs: 1000
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    // Consume the token
+    await limiter.process({ ...mockContext });
+
+    // Try to get another and capture wait time
+    try {
+      await limiter.process({ ...mockContext });
+    } catch (error) {
+      assert.ok(error.retryAfter > 0);
+      assert.ok(error.retryAfter <= 1); // Should be ≤ window in seconds
+    }
+  });
+
+  runner.it('should handle X-Forwarded-For with multiple IPs', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 1,
+      windowMs: 1000
+    });
+
+    const mockContext = {
+      request: {
+        socket: {},
+        headers: {
+          'x-forwarded-for': '  192.168.1.1  , 10.0.0.1, 172.16.0.1  '
+        }
+      }
+    };
+
+    // Should use first IP (trimmed)
+    await limiter.process({ ...mockContext });
+
+    // Second request from same first IP should be blocked
+    await assert.rejects(
+      limiter.process({ ...mockContext }),
+      'limit exceeded'
+    );
+  });
+
+  runner.it('should handle cleanup without bucket in context', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 5,
+      windowMs: 1000
+    });
+
+    const mockContext = {};
+
+    // Should not throw
+    await limiter.cleanup(mockContext, null);
+    await limiter.cleanup(mockContext, new Error('test'));
+  });
+
+  runner.it('should not refund on success without skipSuccessfulRequests', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 1,
+      windowMs: 1000,
+      skipSuccessfulRequests: false
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    const ctx = await limiter.process({ ...mockContext });
+    await limiter.cleanup(ctx, null);
+
+    // Should still be blocked
+    await assert.rejects(
+      limiter.process({ ...mockContext }),
+      'limit exceeded'
+    );
+  });
+
+  runner.it('should not refund on failure without skipFailedRequests', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 1,
+      windowMs: 1000,
+      skipFailedRequests: false
+    });
+
+    const mockContext = {
+      request: {
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      }
+    };
+
+    const ctx = await limiter.process({ ...mockContext });
+    await limiter.cleanup(ctx, new Error('test'));
+
+    // Should still be blocked
+    await assert.rejects(
+      limiter.process({ ...mockContext }),
+      'limit exceeded'
+    );
+  });
+
+  runner.it('should include active buckets in stats', async () => {
+    const limiter = new RateLimiter({
+      maxRequests: 5,
+      windowMs: 1000
+    });
+
+    const stats1 = limiter.getStats();
+    assert.equal(stats1.activeBuckets, 0);
+
+    // Create some buckets
+    await limiter.process({
+      request: { socket: { remoteAddress: '127.0.0.1' }, headers: {} }
+    });
+    await limiter.process({
+      request: { socket: { remoteAddress: '192.168.1.1' }, headers: {} }
+    });
+
+    const stats2 = limiter.getStats();
+    assert.equal(stats2.activeBuckets, 2);
+  });
 });
 
 if (require.main === module) {
