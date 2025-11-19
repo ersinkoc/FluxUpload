@@ -13,13 +13,27 @@ async function runAllTests() {
   console.log('='.repeat(60));
 
   const tests = [
-    // Unit tests
+    // Unit tests - Utils
     { name: 'MimeDetector', path: './unit/MimeDetector.test.js' },
     { name: 'FileNaming', path: './unit/FileNaming.test.js' },
     { name: 'BoundaryScanner', path: './unit/BoundaryScanner.test.js' },
     { name: 'AwsSignatureV4', path: './unit/AwsSignatureV4.test.js' },
+    { name: 'SignedUrls', path: './unit/SignedUrls.test.js' },
+
+    // Unit tests - Core
+    { name: 'MultipartParser', path: './unit/MultipartParser.test.js' },
+
+    // Unit tests - Validators
     { name: 'RateLimiter', path: './unit/RateLimiter.test.js' },
+    { name: 'CsrfProtection', path: './unit/CsrfProtection.test.js' },
+    { name: 'ImageDimensionProbe', path: './unit/ImageDimensionProbe.test.js' },
+
+    // Unit tests - Transformers
     { name: 'StreamCompressor', path: './unit/StreamCompressor.test.js' },
+    { name: 'StreamHasher', path: './unit/StreamHasher.test.js' },
+
+    // Unit tests - Storage
+    { name: 'LocalStorage', path: './unit/LocalStorage.test.js' },
 
     // Integration tests
     { name: 'Upload Integration', path: './integration/upload.test.js' }
