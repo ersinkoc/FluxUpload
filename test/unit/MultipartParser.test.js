@@ -123,6 +123,7 @@ runner.describe('MultipartParser', () => {
 
     return new Promise((resolve, reject) => {
       let fileReceived = false;
+      let fileStreamEnded = false;
 
       parser.on('file', (fileInfo, stream) => {
         try {
@@ -137,6 +138,7 @@ runner.describe('MultipartParser', () => {
               const content = Buffer.concat(chunks).toString();
               assert.equal(content, fileContent);
               fileReceived = true;
+              fileStreamEnded = true;
             } catch (err) {
               reject(err);
             }
@@ -147,9 +149,12 @@ runner.describe('MultipartParser', () => {
         }
       });
 
-      parser.on('finish', () => {
+      parser.on('finish', async () => {
         try {
+          // Wait a tick for file stream to complete
+          await new Promise(r => setImmediate(r));
           assert.ok(fileReceived);
+          assert.ok(fileStreamEnded);
           resolve();
         } catch (err) {
           reject(err);

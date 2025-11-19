@@ -49,30 +49,27 @@ class ImageDimensionProbe extends Plugin {
       return context;
     }
 
-    return new Promise((resolve, reject) => {
-      const probeStream = new DimensionProbeStream({
-        bytesToRead: this.bytesToRead,
-        mimeType: mimeType
-      });
-
-      probeStream.on('dimensions', (dimensions) => {
-        try {
-          this._validateDimensions(dimensions);
-          context.metadata.dimensions = dimensions;
-        } catch (err) {
-          return reject(err);
-        }
-      });
-
-      probeStream.on('error', reject);
-
-      const newStream = context.stream.pipe(probeStream);
-
-      resolve({
-        ...context,
-        stream: newStream
-      });
+    const probeStream = new DimensionProbeStream({
+      bytesToRead: this.bytesToRead,
+      mimeType: mimeType
     });
+
+    probeStream.on('dimensions', (dimensions) => {
+      try {
+        this._validateDimensions(dimensions);
+        context.metadata.dimensions = dimensions;
+      } catch (err) {
+        // Emit error on stream so it propagates to consumers
+        probeStream.destroy(err);
+      }
+    });
+
+    const newStream = context.stream.pipe(probeStream);
+
+    return {
+      ...context,
+      stream: newStream
+    };
   }
 
   _validateDimensions(dimensions) {
