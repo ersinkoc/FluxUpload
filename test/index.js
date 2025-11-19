@@ -25,7 +25,9 @@ async function runAllTests() {
 
     // Unit tests - Validators
     { name: 'RateLimiter', path: './unit/RateLimiter.test.js' },
+    { name: 'QuotaLimiter', path: './unit/QuotaLimiter.test.js' },
     { name: 'CsrfProtection', path: './unit/CsrfProtection.test.js' },
+    { name: 'MagicByteDetector', path: './unit/MagicByteDetector.test.js' },
     { name: 'ImageDimensionProbe', path: './unit/ImageDimensionProbe.test.js' },
 
     // Unit tests - Transformers

@@ -50,33 +50,30 @@ class MagicByteDetector extends Plugin {
    * Peek at first bytes and verify MIME type
    */
   async process(context) {
-    return new Promise((resolve, reject) => {
-      const peekerStream = new MagicBytePeeker({
-        bytesToRead: this.bytesToRead,
-        onDetect: (buffer) => {
-          try {
-            this._verifyMimeType(buffer, context);
-          } catch (err) {
-            reject(err);
-          }
+    const peekerStream = new MagicBytePeeker({
+      bytesToRead: this.bytesToRead,
+      onDetect: (buffer) => {
+        try {
+          this._verifyMimeType(buffer, context);
+        } catch (err) {
+          // Emit error on stream so it propagates to consumers
+          peekerStream.destroy(err);
         }
-      });
-
-      peekerStream.on('error', reject);
-
-      // Pipe original stream through peeker
-      const newStream = context.stream.pipe(peekerStream);
-
-      // Add detected MIME to metadata
-      peekerStream.once('detected', (detectedMime) => {
-        context.metadata.detectedMimeType = detectedMime;
-      });
-
-      resolve({
-        ...context,
-        stream: newStream
-      });
+      }
     });
+
+    // Pipe original stream through peeker
+    const newStream = context.stream.pipe(peekerStream);
+
+    // Add detected MIME to metadata
+    peekerStream.once('detected', (detectedMime) => {
+      context.metadata.detectedMimeType = detectedMime;
+    });
+
+    return {
+      ...context,
+      stream: newStream
+    };
   }
 
   /**
