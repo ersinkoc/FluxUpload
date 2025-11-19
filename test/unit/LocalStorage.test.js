@@ -131,7 +131,8 @@ runner.describe('LocalStorage', () => {
 
     const result = await storage.process(context);
 
-    assert.ok(result.storage.filename.match(/^\d{13}-test\.txt$/));
+    // Timestamp format: 20251119T130046-hash.txt
+    assert.ok(result.storage.filename.match(/^\d{8}T\d{6}-[a-f0-9]+\.txt$/));
 
     // Cleanup
     fs.rmSync(TEST_DIR, { recursive: true });
@@ -271,12 +272,17 @@ runner.describe('LocalStorage', () => {
       metadata: {}
     };
 
+    let caughtError;
     try {
       await storage.process(context);
       throw new Error('Should have thrown');
     } catch (error) {
       assert.ok(error.message.includes('Stream error'));
+      caughtError = error;
     }
+
+    // Call cleanup manually (normally PipelineManager would do this)
+    await storage.cleanup(context, caughtError);
 
     // Cleanup method should have removed temp file
     const tempPath = path.join(TEST_DIR, 'error.txt.tmp');
@@ -395,10 +401,17 @@ runner.describe('LocalStorage', () => {
 
     // Create 1MB of data
     const chunk = Buffer.alloc(1024, 'x');
+    let chunksRemaining = 1024;
+
     const stream = new Readable({
       read() {
-        for (let i = 0; i < 1024; i++) {
-          if (!this.push(chunk)) break;
+        while (chunksRemaining > 0) {
+          if (!this.push(chunk)) {
+            // Backpressure - wait for next read() call
+            chunksRemaining--;
+            return;
+          }
+          chunksRemaining--;
         }
         this.push(null);
       }

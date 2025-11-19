@@ -183,13 +183,14 @@ runner.describe('ImageDimensionProbe', () => {
       metadata: {}
     };
 
-    await assert.rejects(
-      async () => {
-        const result = await probe.process(context);
-        await consumeStream(result.stream);
-      },
-      'exceeds maximum'
-    );
+    const result = await probe.process(context);
+
+    try {
+      await consumeStream(result.stream);
+      throw new Error('Should have rejected');
+    } catch (error) {
+      assert.ok(error.message.includes('exceeds maximum') || error.message.includes('2000'));
+    }
   });
 
   runner.it('should reject image exceeding max height', async () => {
@@ -206,13 +207,14 @@ runner.describe('ImageDimensionProbe', () => {
       metadata: {}
     };
 
-    await assert.rejects(
-      async () => {
-        const result = await probe.process(context);
-        await consumeStream(result.stream);
-      },
-      'exceeds maximum'
-    );
+    const result = await probe.process(context);
+
+    try {
+      await consumeStream(result.stream);
+      throw new Error('Should have rejected');
+    } catch (error) {
+      assert.ok(error.message.includes('exceeds maximum') || error.message.includes('2000'));
+    }
   });
 
   runner.it('should reject image below min width', async () => {
@@ -229,13 +231,14 @@ runner.describe('ImageDimensionProbe', () => {
       metadata: {}
     };
 
-    await assert.rejects(
-      async () => {
-        const result = await probe.process(context);
-        await consumeStream(result.stream);
-      },
-      'below minimum'
-    );
+    const result = await probe.process(context);
+
+    try {
+      await consumeStream(result.stream);
+      throw new Error('Should have rejected');
+    } catch (error) {
+      assert.ok(error.message.includes('below minimum') || error.message.includes('200'));
+    }
   });
 
   runner.it('should reject image below min height', async () => {
@@ -252,13 +255,14 @@ runner.describe('ImageDimensionProbe', () => {
       metadata: {}
     };
 
-    await assert.rejects(
-      async () => {
-        const result = await probe.process(context);
-        await consumeStream(result.stream);
-      },
-      'below minimum'
-    );
+    const result = await probe.process(context);
+
+    try {
+      await consumeStream(result.stream);
+      throw new Error('Should have rejected');
+    } catch (error) {
+      assert.ok(error.message.includes('below minimum') || error.message.includes('200'));
+    }
   });
 
   runner.it('should accept image within bounds', async () => {
