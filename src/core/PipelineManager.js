@@ -67,10 +67,24 @@ class PipelineManager {
 
     // Setup error handler for the stream
     const errorHandler = async (error) => {
-      if (rejected) return; // Avoid multiple rejects
+      // Atomically check and set rejected flag to prevent race conditions
+      if (rejected) return;
       rejected = true;
-      await this._cleanup(context, error);
-      rejectPromise(error);
+
+      try {
+        // Cleanup is idempotent - safe to call multiple times
+        await this._cleanup(context, error);
+      } catch (cleanupError) {
+        // Log cleanup error but continue with rejection
+        console.error('Error during cleanup:', cleanupError);
+      }
+
+      try {
+        // Reject the promise (may fail if already rejected, which is fine)
+        rejectPromise(error);
+      } catch (rejectError) {
+        // Promise already rejected - this is expected in edge cases
+      }
     };
 
     // Listen for errors on source stream from the start
@@ -144,13 +158,19 @@ class PipelineManager {
   }
 
   /**
-   * Cleanup executed plugins on error
+   * Cleanup executed plugins on error (idempotent)
    *
    * @param {Object} context
    * @param {Error} error
    */
   async _cleanup(context, error) {
-    // Destroy the stream first
+    // Mark context as cleaned up to prevent duplicate cleanup
+    if (context._cleanedUp) {
+      return; // Already cleaned up
+    }
+    context._cleanedUp = true;
+
+    // Destroy the stream first (safe to call multiple times)
     if (context.stream && typeof context.stream.destroy === 'function') {
       context.stream.destroy();
     }
@@ -223,6 +243,7 @@ class StreamMultiplexer {
    */
   static split(sourceStream, count) {
     const outputs = [];
+    let errorOccurred = false;
 
     for (let i = 0; i < count; i++) {
       const passThrough = new PassThrough();
@@ -234,9 +255,31 @@ class StreamMultiplexer {
       sourceStream.pipe(output);
     }
 
-    // Handle errors
+    // Handle errors from source stream - propagate to all outputs
     sourceStream.on('error', (err) => {
+      if (errorOccurred) return;
+      errorOccurred = true;
       outputs.forEach(output => output.destroy(err));
+    });
+
+    // Handle errors from individual output streams - abort all
+    outputs.forEach((output, index) => {
+      output.on('error', (err) => {
+        if (errorOccurred) return;
+        errorOccurred = true;
+
+        // Destroy source stream
+        if (sourceStream && typeof sourceStream.destroy === 'function') {
+          sourceStream.destroy(err);
+        }
+
+        // Destroy all other outputs
+        outputs.forEach((otherOutput, otherIndex) => {
+          if (otherIndex !== index && !otherOutput.destroyed) {
+            otherOutput.destroy(err);
+          }
+        });
+      });
     });
 
     return outputs;

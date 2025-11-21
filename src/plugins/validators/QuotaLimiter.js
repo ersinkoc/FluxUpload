@@ -39,38 +39,41 @@ class QuotaLimiter extends Plugin {
    * Wrap stream with byte counter
    */
   async process(context) {
-    return new Promise((resolve, reject) => {
-      const limiterStream = new ByteCounterStream({
-        maxBytes: this.maxFileSize
-      });
+    // Validate stream exists
+    if (!context.stream || typeof context.stream.pipe !== 'function') {
+      const error = new Error('QuotaLimiter requires a valid readable stream in context');
+      error.code = 'INVALID_STREAM';
+      throw error;
+    }
 
-      // Attach error handler to catch and propagate errors
-      limiterStream.on('error', reject);
-
-      // Track total bytes across all files
-      limiterStream.on('bytes', (count) => {
-        this.totalBytesProcessed += count;
-
-        if (this.maxTotalSize && this.totalBytesProcessed > this.maxTotalSize) {
-          const error = new Error(`Total upload size exceeds limit of ${this.maxTotalSize} bytes`);
-          error.code = 'LIMIT_TOTAL_SIZE';
-          limiterStream.destroy(error);
-        }
-      });
-
-      // Pipe original stream through limiter and mutate context in place
-      // IMPORTANT: Validators must mutate context, not return new object
-      // PipelineManager doesn't capture return value from validators
-      if (!context.stream || typeof context.stream.pipe !== 'function') {
-        const error = new Error('QuotaLimiter requires a valid readable stream in context');
-        error.code = 'INVALID_STREAM';
-        return reject(error);
-      }
-      context.stream = context.stream.pipe(limiterStream);
-
-      // Resolve immediately - error handler will catch async errors
-      resolve();
+    const limiterStream = new ByteCounterStream({
+      maxBytes: this.maxFileSize
     });
+
+    // Track total bytes across all files
+    limiterStream.on('bytes', (count) => {
+      this.totalBytesProcessed += count;
+
+      if (this.maxTotalSize && this.totalBytesProcessed > this.maxTotalSize) {
+        const error = new Error(`Total upload size exceeds limit of ${this.maxTotalSize} bytes`);
+        error.code = 'LIMIT_TOTAL_SIZE';
+        limiterStream.destroy(error);
+      }
+    });
+
+    // Propagate limiter errors to original stream for proper error handling
+    limiterStream.on('error', (err) => {
+      // Propagate error to source stream so PipelineManager can catch it
+      if (context.stream && typeof context.stream.destroy === 'function') {
+        context.stream.destroy(err);
+      }
+    });
+
+    // Pipe original stream through limiter
+    context.stream = context.stream.pipe(limiterStream);
+
+    // Return context immediately - stream completion handled by PipelineManager
+    return context;
   }
 
   /**

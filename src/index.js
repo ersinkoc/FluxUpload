@@ -34,6 +34,9 @@ const SignedUrls = require('./utils/SignedUrls');
 // Observability
 const observability = require('./observability');
 
+// Errors
+const errors = require('./errors/FluxUploadError');
+
 // Export main class as default
 module.exports = FluxUpload;
 
@@ -76,3 +79,14 @@ module.exports.MetricsCollector = observability.MetricsCollector;
 module.exports.getCollector = observability.getCollector;
 module.exports.ProgressTracker = observability.ProgressTracker;
 module.exports.HealthCheck = observability.HealthCheck;
+
+// Errors (export entire module + individual classes)
+module.exports.errors = errors;
+module.exports.FluxUploadError = errors.FluxUploadError;
+module.exports.ValidationError = errors.ValidationError;
+module.exports.LimitError = errors.LimitError;
+module.exports.CsrfError = errors.CsrfError;
+module.exports.RateLimitError = errors.RateLimitError;
+module.exports.ParserError = errors.ParserError;
+module.exports.StorageError = errors.StorageError;
+module.exports.PluginError = errors.PluginError;
