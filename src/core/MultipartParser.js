@@ -50,7 +50,8 @@ class MultipartParser extends Writable {
       files: options.limits?.files || 10,
       fields: options.limits?.fields || 100,
       fieldSize: options.limits?.fieldSize || 1024 * 1024, // 1MB
-      fieldNameSize: options.limits?.fieldNameSize || 100
+      fieldNameSize: options.limits?.fieldNameSize || 100,
+      headerSize: options.limits?.headerSize || 8192 // 8KB - prevents DOS via unbounded headers
     };
 
     // Initialize boundary scanner
@@ -179,6 +180,12 @@ class MultipartParser extends Writable {
     } else if (this.state === PARSER_STATE.HEADER) {
       // Accumulate header data
       this.headerBuffer = Buffer.concat([this.headerBuffer, data]);
+
+      // Prevent DOS attack via unbounded header buffer
+      if (this.headerBuffer.length > this.limits.headerSize) {
+        this.emit('limit', 'headerSize', this.limits.headerSize);
+        throw new Error(`Header size limit exceeded: ${this.limits.headerSize} bytes`);
+      }
     }
   }
 

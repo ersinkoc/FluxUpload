@@ -15,6 +15,7 @@
  */
 
 const Plugin = require('../../core/Plugin');
+const LRUCache = require('../../utils/LRUCache');
 
 /**
  * Token bucket for rate limiting
@@ -94,6 +95,7 @@ class RateLimiter extends Plugin {
    * @param {boolean} [options.skipFailedRequests=false] - Don't count failed uploads
    * @param {Function} [options.handler] - Custom handler when limit is exceeded
    * @param {number} [options.cleanupInterval=300000] - Cleanup interval in ms (5 min)
+   * @param {number} [options.maxBuckets=10000] - Maximum number of buckets to store
    */
   constructor(options = {}) {
     super('RateLimiter');
@@ -105,8 +107,10 @@ class RateLimiter extends Plugin {
     this.skipFailedRequests = options.skipFailedRequests || false;
     this.handler = options.handler || this._defaultHandler;
 
-    // Token buckets per key
-    this.buckets = new Map();
+    // Token buckets per key with LRU eviction (bounded memory)
+    this.buckets = new LRUCache({
+      maxSize: options.maxBuckets || 10000
+    });
 
     // Cleanup interval
     this.cleanupInterval = options.cleanupInterval || 300000; // 5 minutes

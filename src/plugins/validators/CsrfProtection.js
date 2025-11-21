@@ -16,6 +16,7 @@
 
 const crypto = require('crypto');
 const Plugin = require('../../core/Plugin');
+const LRUCache = require('../../utils/LRUCache');
 
 class CsrfProtection extends Plugin {
   /**
@@ -27,6 +28,7 @@ class CsrfProtection extends Plugin {
    * @param {Function} [options.getToken] - Custom token getter from request
    * @param {Function} [options.validateToken] - Custom token validator
    * @param {boolean} [options.doubleSubmitCookie=true] - Use double-submit cookie pattern
+   * @param {number} [options.maxTokens=10000] - Maximum number of tokens to store
    */
   constructor(options = {}) {
     super('CsrfProtection');
@@ -39,13 +41,26 @@ class CsrfProtection extends Plugin {
     this.getTokenFn = options.getToken || this._defaultGetToken.bind(this);
     this.validateTokenFn = options.validateToken || this._defaultValidateToken.bind(this);
 
-    // In-memory token store (for stateful validation)
-    this.tokens = new Map();
+    // In-memory token store with LRU eviction (bounded memory)
+    this.tokens = new LRUCache({
+      maxSize: options.maxTokens || 10000,
+      ttl: this.tokenLifetime
+    });
 
-    // Cleanup expired tokens periodically
-    this.cleanupInterval = setInterval(() => {
-      this._cleanupExpiredTokens();
-    }, 60000); // Every minute
+    // Cleanup interval will be started in initialize()
+    this.cleanupInterval = null;
+  }
+
+  /**
+   * Initialize plugin - start cleanup interval
+   */
+  async initialize() {
+    // Start cleanup interval only when plugin is active
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => {
+        this._cleanupExpiredTokens();
+      }, 60000); // Every minute
+    }
   }
 
   /**
@@ -243,15 +258,8 @@ class CsrfProtection extends Plugin {
    * @private
    */
   _cleanupExpiredTokens() {
-    const now = Date.now();
-    let cleaned = 0;
-
-    for (const [token, data] of this.tokens.entries()) {
-      if (now > data.expires) {
-        this.tokens.delete(token);
-        cleaned++;
-      }
-    }
+    // LRUCache handles TTL-based cleanup automatically
+    const cleaned = this.tokens.cleanup();
 
     if (cleaned > 0) {
       console.log(`[CSRF] Cleaned up ${cleaned} expired tokens`);
@@ -264,6 +272,7 @@ class CsrfProtection extends Plugin {
   async shutdown() {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
     this.clearTokens();
   }
