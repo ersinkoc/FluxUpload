@@ -68,7 +68,11 @@ class CsrfProtection extends Plugin {
    */
   async process(context) {
     if (!context.request) {
-      const error = new Error('CSRF protection requires context.request');
+      const error = new Error(
+        'CsrfProtection requires HTTP request context. ' +
+        'This validator cannot be used in buffer parsing mode (parseBuffer). ' +
+        'Remove CsrfProtection from validators or use handle() instead.'
+      );
       error.code = 'CSRF_NO_REQUEST';
       error.statusCode = 400;
       throw error;
@@ -176,12 +180,16 @@ class CsrfProtection extends Plugin {
   }
 
   /**
-   * Default token getter - tries header, body, query
+   * Default token getter - tries header and cookie only
+   *
+   * SECURITY: Query string tokens are NOT supported due to logging exposure.
+   * Tokens in URLs appear in server logs, proxy logs, browser history, and
+   * referrer headers, which completely defeats CSRF protection.
    *
    * @private
    */
   _defaultGetToken(req) {
-    // Check header
+    // Check header (most secure)
     let token = req.headers[this.headerName.toLowerCase()];
 
     if (token) {
@@ -193,25 +201,26 @@ class CsrfProtection extends Plugin {
       token = this._getCookieToken(req);
     }
 
-    // Check query string (less secure, but supported)
-    if (!token && req.url) {
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      token = url.searchParams.get('csrf_token');
-    }
+    // Query string tokens are NOT supported for security reasons
+    // If you need query string support, you MUST provide a custom getToken function
+    // and accept the security implications
 
     return token;
   }
 
   /**
-   * Default token validator
+   * Default token validator (timing-safe)
    *
    * @private
    */
   _defaultValidateToken(req, token) {
     if (this.doubleSubmitCookie) {
-      // Double-submit cookie pattern
+      // Double-submit cookie pattern with timing-safe comparison
       const cookieToken = this._getCookieToken(req);
-      return cookieToken && cookieToken === token;
+      if (!cookieToken || !token) {
+        return false;
+      }
+      return this._timingSafeEqual(cookieToken, token);
     } else {
       // Stateful validation
       return this.verifyToken(token);
@@ -263,6 +272,39 @@ class CsrfProtection extends Plugin {
 
     if (cleaned > 0) {
       console.log(`[CSRF] Cleaned up ${cleaned} expired tokens`);
+    }
+  }
+
+  /**
+   * Timing-safe string comparison
+   *
+   * Prevents timing attacks by ensuring comparison takes constant time
+   * regardless of where strings differ.
+   *
+   * @private
+   */
+  _timingSafeEqual(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') {
+      return false;
+    }
+
+    // Convert to buffers for crypto.timingSafeEqual
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+
+    // Must be same length for timingSafeEqual
+    if (bufA.length !== bufB.length) {
+      // Still do constant-time comparison to prevent length-based timing attacks
+      // Compare against a dummy buffer of same length as b
+      const dummyBuf = Buffer.alloc(bufB.length);
+      crypto.timingSafeEqual(bufB, dummyBuf);
+      return false;
+    }
+
+    try {
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch (err) {
+      return false;
     }
   }
 

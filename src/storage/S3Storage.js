@@ -49,7 +49,7 @@ class S3Storage extends Plugin {
     this.bucket = config.bucket;
     this.region = config.region;
     this.endpoint = config.endpoint || null;
-    this.prefix = config.prefix || '';
+    this.prefix = this._validatePrefix(config.prefix || '');
     this.acl = config.acl || 'private';
     this.storageClass = config.storageClass || 'STANDARD';
     this.customMetadata = config.metadata || {};
@@ -86,6 +86,9 @@ class S3Storage extends Plugin {
     );
 
     const key = this.prefix ? `${this.prefix}/${filename}` : filename;
+
+    // Validate key to prevent path traversal
+    this._validateKey(key);
 
     // Track for cleanup
     this.uploadedKeys.set(context, key);
@@ -332,6 +335,59 @@ class S3Storage extends Plugin {
       url: url,
       expiresIn: options.expiresIn || 3600
     });
+  }
+
+  /**
+   * Validate prefix to prevent path traversal
+   *
+   * @private
+   * @param {string} prefix
+   * @returns {string} - Validated prefix
+   * @throws {Error} - If prefix contains path traversal
+   */
+  _validatePrefix(prefix) {
+    if (!prefix) return '';
+
+    // Normalize and check for path traversal
+    const normalized = prefix.replace(/\\/g, '/').replace(/\/+/g, '/');
+
+    if (normalized.includes('..')) {
+      throw new Error('S3 prefix cannot contain path traversal sequences (..)');
+    }
+
+    // Remove leading/trailing slashes
+    return normalized.replace(/^\/+|\/+$/g, '');
+  }
+
+  /**
+   * Validate S3 key to prevent path traversal
+   *
+   * @private
+   * @param {string} key
+   * @throws {Error} - If key contains path traversal
+   */
+  _validateKey(key) {
+    if (!key) {
+      throw new Error('S3 key cannot be empty');
+    }
+
+    // Normalize path separators
+    const normalized = key.replace(/\\/g, '/');
+
+    // Check for path traversal
+    if (normalized.includes('..')) {
+      throw new Error(`Invalid S3 key: path traversal detected (${key})`);
+    }
+
+    // Check for absolute paths (should be relative)
+    if (normalized.startsWith('/')) {
+      throw new Error(`Invalid S3 key: absolute paths not allowed (${key})`);
+    }
+
+    // Validate key doesn't escape prefix
+    if (this.prefix && !normalized.startsWith(this.prefix + '/') && normalized !== this.prefix) {
+      throw new Error(`Invalid S3 key: must be within prefix '${this.prefix}' (${key})`);
+    }
   }
 }
 

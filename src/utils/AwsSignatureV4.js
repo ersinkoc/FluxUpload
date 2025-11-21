@@ -63,11 +63,11 @@ class AwsSignatureV4 {
     const path = url.pathname || '/';
     const query = url.search.slice(1); // Remove leading '?'
 
-    // Prepare headers
+    // Prepare headers with sanitization to prevent header injection
     const headers = {
       'host': host,
       'x-amz-date': amzDate,
-      ...request.headers
+      ...this._sanitizeHeaders(request.headers || {})
     };
 
     // Add session token if present (temporary credentials)
@@ -278,6 +278,44 @@ class AwsSignatureV4 {
    */
   _getDateStamp(date) {
     return date.toISOString().split('T')[0].replace(/-/g, '');
+  }
+
+  /**
+   * Sanitize headers to prevent header injection attacks
+   *
+   * Removes control characters (\x00-\x1F), carriage returns (\r),
+   * and line feeds (\n) that could be used for header injection.
+   *
+   * @private
+   * @param {Object} headers - Headers object
+   * @returns {Object} - Sanitized headers
+   */
+  _sanitizeHeaders(headers) {
+    const sanitized = {};
+
+    for (const [key, value] of Object.entries(headers)) {
+      if (!key || !value) continue;
+
+      // Sanitize header name (lowercase, strip control chars)
+      const sanitizedKey = key
+        .toLowerCase()
+        .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+        .replace(/[\r\n]/g, ''); // Remove CR/LF
+
+      // Sanitize header value (strip control chars, preserve spaces)
+      const sanitizedValue = value
+        .toString()
+        .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters except space
+        .replace(/[\r\n]/g, '') // Remove CR/LF
+        .trim();
+
+      // Only include if both key and value are non-empty after sanitization
+      if (sanitizedKey && sanitizedValue) {
+        sanitized[sanitizedKey] = sanitizedValue;
+      }
+    }
+
+    return sanitized;
   }
 
   /**

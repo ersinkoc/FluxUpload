@@ -368,7 +368,8 @@ runner.describe('S3Storage', () => {
     assert.equal(storage.prefix, '');
   });
 
-  runner.it('should accept prefix with trailing slash', () => {
+  runner.it('should normalize prefix with trailing slash', () => {
+    // Prefix validation removes leading/trailing slashes for safety
     const storage = new S3Storage({
       bucket: 'test-bucket',
       region: 'us-east-1',
@@ -377,7 +378,8 @@ runner.describe('S3Storage', () => {
       prefix: 'uploads/'
     });
 
-    assert.equal(storage.prefix, 'uploads/');
+    // Trailing slash is removed by _validatePrefix
+    assert.equal(storage.prefix, 'uploads');
   });
 
   runner.it('should accept prefix without trailing slash', () => {

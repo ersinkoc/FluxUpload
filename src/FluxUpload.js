@@ -145,6 +145,11 @@ class FluxUpload {
 
     const boundary = MultipartParser.getBoundary(contentType);
 
+    // Validate boundary exists and is not empty
+    if (!boundary || boundary.length === 0) {
+      throw new Error('Invalid or missing boundary in Content-Type header');
+    }
+
     // Create parser
     const parser = new MultipartParser({
       boundary,

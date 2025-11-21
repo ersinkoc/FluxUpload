@@ -174,10 +174,16 @@ class RateLimiter extends Plugin {
   /**
    * Default key generator - uses IP address
    *
+   * Note: Returns 'unknown' in buffer parsing mode (no request context).
+   * This means all buffer parses share the same rate limit bucket.
+   * For proper per-client rate limiting, use handle() with HTTP requests.
+   *
    * @private
    */
   _defaultKeyGenerator(context) {
     if (!context.request) {
+      // Buffer parsing mode - all requests share same bucket
+      // This is intentional: buffer parsing is typically used in testing
       return 'unknown';
     }
     const req = context.request;
