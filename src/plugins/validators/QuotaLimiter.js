@@ -61,6 +61,11 @@ class QuotaLimiter extends Plugin {
       // Pipe original stream through limiter and mutate context in place
       // IMPORTANT: Validators must mutate context, not return new object
       // PipelineManager doesn't capture return value from validators
+      if (!context.stream || typeof context.stream.pipe !== 'function') {
+        const error = new Error('QuotaLimiter requires a valid readable stream in context');
+        error.code = 'INVALID_STREAM';
+        return reject(error);
+      }
       context.stream = context.stream.pipe(limiterStream);
 
       // Resolve immediately - error handler will catch async errors

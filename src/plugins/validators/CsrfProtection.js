@@ -52,6 +52,13 @@ class CsrfProtection extends Plugin {
    * Validate CSRF token before processing upload
    */
   async process(context) {
+    if (!context.request) {
+      const error = new Error('CSRF protection requires context.request');
+      error.code = 'CSRF_NO_REQUEST';
+      error.statusCode = 400;
+      throw error;
+    }
+
     const req = context.request;
 
     // Get token from request
@@ -216,8 +223,16 @@ class CsrfProtection extends Plugin {
     if (!cookieHeader) return {};
 
     return cookieHeader.split(';').reduce((cookies, cookie) => {
-      const [name, value] = cookie.trim().split('=');
-      cookies[name] = decodeURIComponent(value);
+      const parts = cookie.trim().split('=');
+      const name = parts[0];
+      const value = parts.slice(1).join('='); // Handle values containing '='
+      if (name && value !== undefined && value !== '') {
+        try {
+          cookies[name] = decodeURIComponent(value);
+        } catch {
+          cookies[name] = value; // Use raw value if decode fails
+        }
+      }
       return cookies;
     }, {});
   }

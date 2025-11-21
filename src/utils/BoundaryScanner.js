@@ -55,8 +55,9 @@ class BoundaryScanner {
 
     // Calculate how much to keep for next iteration
     // We need to keep (boundaryLength - 1) bytes in case boundary is split
-    const keepSize = Math.min(this.boundaryLength - 1, searchBuffer.length - searchStart);
-    const newCarryover = searchBuffer.slice(searchBuffer.length - keepSize);
+    const remainingBytes = Math.max(0, searchBuffer.length - searchStart);
+    const keepSize = Math.min(this.boundaryLength - 1, remainingBytes);
+    const newCarryover = keepSize > 0 ? searchBuffer.slice(searchBuffer.length - keepSize) : Buffer.alloc(0);
 
     // Update internal carryover for next scan
     this.carryover = newCarryover;
@@ -69,7 +70,8 @@ class BoundaryScanner {
     return {
       parts,
       emitData,
-      carryover: newCarryover
+      carryover: newCarryover,
+      searchBuffer // Include searchBuffer for proper index access
     };
   }
 

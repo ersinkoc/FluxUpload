@@ -134,8 +134,8 @@ class MultipartParser extends Writable {
         this._handleBodyData(part.data);
       }
 
-      // Handle the boundary
-      this._handleBoundary(chunk, part.boundaryIndex);
+      // Handle the boundary - use searchBuffer for correct indexing
+      this._handleBoundary(result.searchBuffer, part.boundaryIndex);
     }
 
     this.scanner.carryover = result.carryover;
@@ -184,13 +184,15 @@ class MultipartParser extends Writable {
 
   /**
    * Handle boundary detection
-   * @param {Buffer} chunk - Original chunk (for context)
-   * @param {number} boundaryIndex - Position of boundary
+   * @param {Buffer} searchBuffer - The buffer being searched (includes carryover)
+   * @param {number} boundaryIndex - Position of boundary in searchBuffer
    */
-  _handleBoundary(chunk, boundaryIndex) {
+  _handleBoundary(searchBuffer, boundaryIndex) {
     // Check if this is the final boundary (ends with --)
     const afterBoundary = boundaryIndex + this.scanner.boundaryLength;
-    const isFinal = chunk[afterBoundary] === 0x2D && chunk[afterBoundary + 1] === 0x2D; // "--"
+    const isFinal = afterBoundary + 1 < searchBuffer.length &&
+                    searchBuffer[afterBoundary] === 0x2D &&
+                    searchBuffer[afterBoundary + 1] === 0x2D; // "--"
 
     if (isFinal) {
       // Final boundary - parse headers if we were collecting them

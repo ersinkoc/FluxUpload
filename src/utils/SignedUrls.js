@@ -133,7 +133,8 @@ class SignedUrls {
       const expires = parseInt(params.expires, 10);
       const now = Math.floor(Date.now() / 1000);
 
-      if (now > expires) {
+      // NaN check: if expires is not a valid number, treat as expired
+      if (isNaN(expires) || now > expires) {
         return {
           valid: false,
           error: 'URL expired',
@@ -155,9 +156,12 @@ class SignedUrls {
       }
 
       // Extract constraints
+      const maxFileSize = params.max_size ? parseInt(params.max_size, 10) : undefined;
+      const maxFiles = params.max_files ? parseInt(params.max_files, 10) : undefined;
+
       const constraints = {
-        maxFileSize: params.max_size ? parseInt(params.max_size, 10) : undefined,
-        maxFiles: params.max_files ? parseInt(params.max_files, 10) : undefined,
+        maxFileSize: maxFileSize && !isNaN(maxFileSize) ? maxFileSize : undefined,
+        maxFiles: maxFiles && !isNaN(maxFiles) ? maxFiles : undefined,
         allowedTypes: params.allowed_types ? params.allowed_types.split(',') : undefined,
         userId: params.user_id,
         expires: new Date(expires * 1000)
@@ -203,10 +207,17 @@ class SignedUrls {
       }
 
       async process(context) {
+        if (!context.request || !context.request.headers) {
+          const error = new Error('Signed URL validator requires context.request with headers');
+          error.code = 'SIGNED_URL_NO_REQUEST';
+          error.statusCode = 400;
+          throw error;
+        }
+
         const req = context.request;
 
         // Get URL from request
-        const url = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}${req.url}`;
+        const url = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host || 'localhost'}${req.url || '/'}`;
 
         // Validate
         const result = self.validate(url, options);

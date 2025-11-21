@@ -67,6 +67,11 @@ class LocalStorage extends Plugin {
   }
 
   async process(context) {
+    // Validate context has required properties
+    if (!context.fileInfo || !context.fileInfo.filename) {
+      throw new Error('LocalStorage requires context.fileInfo.filename');
+    }
+
     // Generate filename
     const filename = this.naming.generate(
       context.fileInfo.filename,
@@ -177,7 +182,7 @@ class LocalStorage extends Plugin {
   _generateUrl(filename) {
     // Default: relative path
     // In a real application, this might return a full URL
-    return `/uploads/${filename}`;
+    return `/uploads/${encodeURIComponent(filename)}`;
   }
 
   /**

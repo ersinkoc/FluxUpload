@@ -126,6 +126,11 @@ class FluxUpload {
    * @returns {Promise<Object>} - { fields, files }
    */
   async handle(req) {
+    // Validate request object
+    if (!req || !req.headers) {
+      throw new Error('Invalid request object: missing headers');
+    }
+
     // Reset state
     this.fields = {};
     this.files = [];
