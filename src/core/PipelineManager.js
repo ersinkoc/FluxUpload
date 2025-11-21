@@ -57,22 +57,28 @@ class PipelineManager {
 
     this.executedPlugins = [];
 
-    return new Promise(async (resolve, reject) => {
-      let rejected = false;
+    let rejected = false;
+    let resolvePromise, rejectPromise;
 
-      // Setup error handler for the stream
-      const errorHandler = async (error) => {
-        if (rejected) return; // Avoid multiple rejects
-        rejected = true;
-        await this._cleanup(context, error);
-        reject(error);
-      };
+    const promise = new Promise((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
 
-      // Listen for errors on source stream from the start
-      if (sourceStream) {
-        sourceStream.on('error', errorHandler);
-      }
+    // Setup error handler for the stream
+    const errorHandler = async (error) => {
+      if (rejected) return; // Avoid multiple rejects
+      rejected = true;
+      await this._cleanup(context, error);
+      rejectPromise(error);
+    };
 
+    // Listen for errors on source stream from the start
+    if (sourceStream) {
+      sourceStream.on('error', errorHandler);
+    }
+
+    (async () => {
       try {
         // Phase 1: Validation
         // Validators can inspect metadata and first bytes without consuming stream
@@ -103,12 +109,14 @@ class PipelineManager {
         const result = await this.storage.process(context);
         this.executedPlugins.push(this.storage);
 
-        resolve(result);
+        resolvePromise(result);
 
       } catch (error) {
         await errorHandler(error);
       }
-    });
+    })();
+
+    return promise;
   }
 
   /**

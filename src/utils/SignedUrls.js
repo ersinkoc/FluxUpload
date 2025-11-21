@@ -133,7 +133,8 @@ class SignedUrls {
       const expires = parseInt(params.expires, 10);
       const now = Math.floor(Date.now() / 1000);
 
-      if (now > expires) {
+      // NaN check: if expires is not a valid number, treat as expired
+      if (isNaN(expires) || now > expires) {
         return {
           valid: false,
           error: 'URL expired',

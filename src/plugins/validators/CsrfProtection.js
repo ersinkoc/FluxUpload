@@ -216,8 +216,16 @@ class CsrfProtection extends Plugin {
     if (!cookieHeader) return {};
 
     return cookieHeader.split(';').reduce((cookies, cookie) => {
-      const [name, value] = cookie.trim().split('=');
-      cookies[name] = decodeURIComponent(value);
+      const parts = cookie.trim().split('=');
+      const name = parts[0];
+      const value = parts.slice(1).join('='); // Handle values containing '='
+      if (name && value !== undefined && value !== '') {
+        try {
+          cookies[name] = decodeURIComponent(value);
+        } catch {
+          cookies[name] = value; // Use raw value if decode fails
+        }
+      }
       return cookies;
     }, {});
   }

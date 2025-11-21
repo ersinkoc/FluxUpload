@@ -177,7 +177,7 @@ class LocalStorage extends Plugin {
   _generateUrl(filename) {
     // Default: relative path
     // In a real application, this might return a full URL
-    return `/uploads/${filename}`;
+    return `/uploads/${encodeURIComponent(filename)}`;
   }
 
   /**
