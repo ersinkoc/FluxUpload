@@ -173,8 +173,11 @@ class RateLimiter extends Plugin {
    * @private
    */
   _defaultKeyGenerator(context) {
+    if (!context.request) {
+      return 'unknown';
+    }
     const req = context.request;
-    return req.socket.remoteAddress ||
+    return (req.socket && req.socket.remoteAddress) ||
            req.headers['x-forwarded-for']?.split(',')[0].trim() ||
            'unknown';
   }

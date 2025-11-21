@@ -136,6 +136,10 @@ class PipelineManager {
     // Let transformer process (it should return modified context with new stream)
     const result = await transformer.process(tempContext);
 
+    if (!result || !result.stream) {
+      throw new Error(`Transformer ${transformer.name} did not return a valid stream`);
+    }
+
     return result.stream;
   }
 

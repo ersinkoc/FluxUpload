@@ -65,7 +65,7 @@ class FileNaming {
 
     switch (this.strategy) {
       case 'original':
-        generatedName = baseName; // Already sanitized above
+        generatedName = baseName || 'unnamed'; // Already sanitized above
         break;
 
       case 'uuid':

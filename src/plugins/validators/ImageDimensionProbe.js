@@ -43,7 +43,8 @@ class ImageDimensionProbe extends Plugin {
 
   async process(context) {
     // Only probe if this is an image
-    const mimeType = context.metadata.detectedMimeType || context.fileInfo.mimeType;
+    const mimeType = (context.metadata && context.metadata.detectedMimeType) ||
+                     (context.fileInfo && context.fileInfo.mimeType);
     if (!mimeType || !mimeType.startsWith('image/')) {
       // Not an image - skip
       return context;

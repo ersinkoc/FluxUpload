@@ -52,6 +52,13 @@ class CsrfProtection extends Plugin {
    * Validate CSRF token before processing upload
    */
   async process(context) {
+    if (!context.request) {
+      const error = new Error('CSRF protection requires context.request');
+      error.code = 'CSRF_NO_REQUEST';
+      error.statusCode = 400;
+      throw error;
+    }
+
     const req = context.request;
 
     // Get token from request
