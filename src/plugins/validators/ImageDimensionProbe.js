@@ -76,6 +76,25 @@ class ImageDimensionProbe extends Plugin {
   _validateDimensions(dimensions) {
     const { width, height } = dimensions;
 
+    // Prevent integer overflow attacks - reasonable max dimension
+    // 100,000 pixels = ~100 megapixels (larger than most cameras)
+    const ABSOLUTE_MAX_DIMENSION = 100000;
+
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      throw new Error('Invalid image dimensions: must be finite numbers');
+    }
+
+    if (width > ABSOLUTE_MAX_DIMENSION || height > ABSOLUTE_MAX_DIMENSION) {
+      throw new Error(
+        `Image dimensions exceed absolute maximum (${ABSOLUTE_MAX_DIMENSION}px): ` +
+        `${width}x${height}. This may indicate a malformed or malicious image.`
+      );
+    }
+
+    if (width < 0 || height < 0) {
+      throw new Error(`Invalid image dimensions: negative values not allowed (${width}x${height})`);
+    }
+
     if (width < this.minWidth) {
       throw new Error(`Image width ${width}px is below minimum ${this.minWidth}px`);
     }

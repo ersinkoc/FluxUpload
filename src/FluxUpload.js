@@ -39,6 +39,7 @@ class FluxUpload {
       fields: 100,
       fieldSize: 1024 * 1024, // 1MB
       fieldNameSize: 100,
+      uploadTimeout: 5 * 60 * 1000, // 5 minutes - prevents slow-loris attacks
       ...config.limits
     };
 
@@ -131,6 +132,23 @@ class FluxUpload {
       throw new Error('Invalid request object: missing headers');
     }
 
+    // Setup timeout to prevent slow-loris attacks
+    let timeoutId = null;
+    const timeoutPromise = new Promise((_, reject) => {
+      if (this.limits.uploadTimeout > 0) {
+        timeoutId = setTimeout(() => {
+          const error = new Error(`Upload timeout: exceeded ${this.limits.uploadTimeout}ms limit`);
+          error.code = 'UPLOAD_TIMEOUT';
+          error.statusCode = 408;
+          // Abort the request stream if possible
+          if (req && typeof req.destroy === 'function') {
+            req.destroy(error);
+          }
+          reject(error);
+        }, this.limits.uploadTimeout);
+      }
+    });
+
     // Reset state
     this.fields = {};
     this.files = [];
@@ -190,7 +208,7 @@ class FluxUpload {
     });
 
     // Wait for parsing to complete
-    return new Promise((resolve, reject) => {
+    const uploadPromise = new Promise((resolve, reject) => {
       parser.on('finish', async () => {
         // Wait for all file handlers to complete
         try {
@@ -219,6 +237,22 @@ class FluxUpload {
       // Pipe request to parser
       req.pipe(parser);
     });
+
+    // Race between upload and timeout
+    try {
+      const result = this.limits.uploadTimeout > 0
+        ? await Promise.race([uploadPromise, timeoutPromise])
+        : await uploadPromise;
+
+      // Clear timeout on success
+      if (timeoutId) clearTimeout(timeoutId);
+
+      return result;
+    } catch (error) {
+      // Clear timeout on error
+      if (timeoutId) clearTimeout(timeoutId);
+      throw error;
+    }
   }
 
   /**

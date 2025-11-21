@@ -23,14 +23,16 @@ class MagicByteDetector extends Plugin {
    * @param {Object} config
    * @param {Array<string>} config.allowed - Allowed MIME types (supports wildcards)
    * @param {Array<string>} config.denied - Denied MIME types (optional)
-   * @param {number} config.bytesToRead - Bytes to read for detection (default: 16)
+   * @param {number} config.bytesToRead - Bytes to read for detection (default: 32)
    */
   constructor(config) {
     super(config);
 
     this.allowed = config.allowed || null; // null = allow all
     this.denied = config.denied || [];
-    this.bytesToRead = config.bytesToRead || 16;
+    // Increased from 16 to 32 bytes for better detection of complex formats
+    // (ZIP variants, Office documents, etc.)
+    this.bytesToRead = config.bytesToRead || 32;
 
     this.detector = new MimeDetector();
 

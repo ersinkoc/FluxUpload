@@ -96,16 +96,18 @@ class RateLimiter extends Plugin {
    * @param {Function} [options.handler] - Custom handler when limit is exceeded
    * @param {number} [options.cleanupInterval=300000] - Cleanup interval in ms (5 min)
    * @param {number} [options.maxBuckets=10000] - Maximum number of buckets to store
+   * @param {boolean} [options.trustProxy=false] - Trust X-Forwarded-For header
    */
   constructor(options = {}) {
     super('RateLimiter');
 
     this.maxRequests = options.maxRequests || 100;
     this.windowMs = options.windowMs || 60000; // 1 minute
-    this.keyGenerator = options.keyGenerator || this._defaultKeyGenerator;
+    this.keyGenerator = options.keyGenerator || this._defaultKeyGenerator.bind(this);
     this.skipSuccessfulRequests = options.skipSuccessfulRequests || false;
     this.skipFailedRequests = options.skipFailedRequests || false;
     this.handler = options.handler || this._defaultHandler;
+    this.trustProxy = options.trustProxy || false;
 
     // Token buckets per key with LRU eviction (bounded memory)
     this.buckets = new LRUCache({
@@ -178,6 +180,9 @@ class RateLimiter extends Plugin {
    * This means all buffer parses share the same rate limit bucket.
    * For proper per-client rate limiting, use handle() with HTTP requests.
    *
+   * Security: Only trusts X-Forwarded-For if trustProxy is enabled.
+   * Without it, uses socket.remoteAddress to prevent IP spoofing.
+   *
    * @private
    */
   _defaultKeyGenerator(context) {
@@ -186,10 +191,21 @@ class RateLimiter extends Plugin {
       // This is intentional: buffer parsing is typically used in testing
       return 'unknown';
     }
+
     const req = context.request;
-    return (req.socket && req.socket.remoteAddress) ||
-           req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-           'unknown';
+
+    // If behind a trusted proxy, use X-Forwarded-For (rightmost IP)
+    if (this.trustProxy && req.headers['x-forwarded-for']) {
+      const forwarded = req.headers['x-forwarded-for'];
+      // Get rightmost IP (closest to this server)
+      const ips = forwarded.split(',').map(ip => ip.trim()).filter(Boolean);
+      if (ips.length > 0) {
+        return ips[ips.length - 1];
+      }
+    }
+
+    // Default: use direct socket connection
+    return (req.socket && req.socket.remoteAddress) || 'unknown';
   }
 
   /**
