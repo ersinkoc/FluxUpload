@@ -17,6 +17,15 @@
 const crypto = require('crypto');
 const Plugin = require('../../core/Plugin');
 const LRUCache = require('../../utils/LRUCache');
+const { getLogger } = require('../../observability/Logger');
+
+const logger = getLogger('CsrfProtection');
+
+// CSRF protection constants
+const DEFAULT_TOKEN_LENGTH = 32; // bytes
+const DEFAULT_TOKEN_LIFETIME = 3600000; // 1 hour in milliseconds
+const DEFAULT_MAX_TOKENS = 10000;
+const CLEANUP_INTERVAL_MS = 60000; // 1 minute
 
 class CsrfProtection extends Plugin {
   /**
@@ -33,8 +42,8 @@ class CsrfProtection extends Plugin {
   constructor(options = {}) {
     super('CsrfProtection');
 
-    this.tokenLength = options.tokenLength || 32;
-    this.tokenLifetime = options.tokenLifetime || 3600000; // 1 hour
+    this.tokenLength = options.tokenLength || DEFAULT_TOKEN_LENGTH;
+    this.tokenLifetime = options.tokenLifetime || DEFAULT_TOKEN_LIFETIME;
     this.cookieName = options.cookieName || 'csrf-token';
     this.headerName = options.headerName || 'X-CSRF-Token';
     this.doubleSubmitCookie = options.doubleSubmitCookie !== false;
@@ -43,7 +52,7 @@ class CsrfProtection extends Plugin {
 
     // In-memory token store with LRU eviction (bounded memory)
     this.tokens = new LRUCache({
-      maxSize: options.maxTokens || 10000,
+      maxSize: options.maxTokens || DEFAULT_MAX_TOKENS,
       ttl: this.tokenLifetime
     });
 
@@ -59,7 +68,7 @@ class CsrfProtection extends Plugin {
     if (!this.cleanupInterval) {
       this.cleanupInterval = setInterval(() => {
         this._cleanupExpiredTokens();
-      }, 60000); // Every minute
+      }, CLEANUP_INTERVAL_MS);
     }
   }
 
@@ -271,7 +280,7 @@ class CsrfProtection extends Plugin {
     const cleaned = this.tokens.cleanup();
 
     if (cleaned > 0) {
-      console.log(`[CSRF] Cleaned up ${cleaned} expired tokens`);
+      logger.debug('Cleaned up expired CSRF tokens', { count: cleaned });
     }
   }
 

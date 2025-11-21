@@ -17,6 +17,9 @@
 
 const { pipeline } = require('stream/promises');
 const { PassThrough } = require('stream');
+const { getLogger } = require('../observability/Logger');
+
+const logger = getLogger('PipelineManager');
 
 class PipelineManager {
   /**
@@ -47,6 +50,9 @@ class PipelineManager {
    * @param {string} fileInfo.filename - Original filename
    * @param {string} fileInfo.mimeType - MIME type
    * @returns {Promise<Object>} - Upload result with metadata
+   * @throws {Error} If validation fails
+   * @throws {Error} If transformation fails
+   * @throws {Error} If storage fails
    */
   async execute(sourceStream, fileInfo) {
     const context = {
@@ -76,7 +82,7 @@ class PipelineManager {
         await this._cleanup(context, error);
       } catch (cleanupError) {
         // Log cleanup error but continue with rejection
-        console.error('Error during cleanup:', cleanupError);
+        logger.error('Error during cleanup', { error: cleanupError.message, stack: cleanupError.stack });
       }
 
       try {
@@ -183,7 +189,7 @@ class PipelineManager {
         await plugin.cleanup(context, error);
       } catch (cleanupError) {
         // Log but don't throw - we want to cleanup all plugins
-        console.error(`Cleanup error in ${plugin.name}:`, cleanupError);
+        logger.error('Cleanup error in plugin', { plugin: plugin.name, error: cleanupError.message, stack: cleanupError.stack });
       }
     }
   }

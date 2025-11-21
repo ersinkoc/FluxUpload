@@ -18,6 +18,10 @@ const { Transform } = require('stream');
 const Plugin = require('../../core/Plugin');
 const MimeDetector = require('../../utils/MimeDetector');
 
+// Default number of bytes to read for MIME detection
+// 32 bytes is enough for most file formats including ZIP variants and Office documents
+const DEFAULT_MAGIC_BYTES_TO_READ = 32;
+
 class MagicByteDetector extends Plugin {
   /**
    * @param {Object} config
@@ -30,9 +34,7 @@ class MagicByteDetector extends Plugin {
 
     this.allowed = config.allowed || null; // null = allow all
     this.denied = config.denied || [];
-    // Increased from 16 to 32 bytes for better detection of complex formats
-    // (ZIP variants, Office documents, etc.)
-    this.bytesToRead = config.bytesToRead || 32;
+    this.bytesToRead = config.bytesToRead || DEFAULT_MAGIC_BYTES_TO_READ;
 
     this.detector = new MimeDetector();
 

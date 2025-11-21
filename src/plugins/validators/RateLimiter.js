@@ -17,6 +17,12 @@
 const Plugin = require('../../core/Plugin');
 const LRUCache = require('../../utils/LRUCache');
 
+// Rate limiter constants
+const DEFAULT_MAX_REQUESTS = 100;
+const DEFAULT_WINDOW_MS = 60000; // 1 minute
+const DEFAULT_CLEANUP_INTERVAL_MS = 300000; // 5 minutes
+const DEFAULT_MAX_BUCKETS = 10000;
+
 /**
  * Token bucket for rate limiting
  */
@@ -101,8 +107,8 @@ class RateLimiter extends Plugin {
   constructor(options = {}) {
     super('RateLimiter');
 
-    this.maxRequests = options.maxRequests || 100;
-    this.windowMs = options.windowMs || 60000; // 1 minute
+    this.maxRequests = options.maxRequests || DEFAULT_MAX_REQUESTS;
+    this.windowMs = options.windowMs || DEFAULT_WINDOW_MS;
     this.keyGenerator = options.keyGenerator || this._defaultKeyGenerator.bind(this);
     this.skipSuccessfulRequests = options.skipSuccessfulRequests || false;
     this.skipFailedRequests = options.skipFailedRequests || false;
@@ -111,11 +117,11 @@ class RateLimiter extends Plugin {
 
     // Token buckets per key with LRU eviction (bounded memory)
     this.buckets = new LRUCache({
-      maxSize: options.maxBuckets || 10000
+      maxSize: options.maxBuckets || DEFAULT_MAX_BUCKETS
     });
 
     // Cleanup interval
-    this.cleanupInterval = options.cleanupInterval || 300000; // 5 minutes
+    this.cleanupInterval = options.cleanupInterval || DEFAULT_CLEANUP_INTERVAL_MS;
     this.lastCleanup = Date.now();
 
     // Calculate refill rate

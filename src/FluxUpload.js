@@ -14,6 +14,14 @@
 const MultipartParser = require('./core/MultipartParser');
 const { PipelineManager, StreamMultiplexer } = require('./core/PipelineManager');
 
+// Default limit constants
+const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_FILES = 10;
+const DEFAULT_MAX_FIELDS = 100;
+const DEFAULT_MAX_FIELD_SIZE = 1024 * 1024; // 1MB
+const DEFAULT_MAX_FIELD_NAME_SIZE = 100;
+const DEFAULT_UPLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
 class FluxUpload {
   /**
    * @param {Object} config
@@ -34,12 +42,12 @@ class FluxUpload {
 
     // Limits
     this.limits = {
-      fileSize: 100 * 1024 * 1024, // 100MB
-      files: 10,
-      fields: 100,
-      fieldSize: 1024 * 1024, // 1MB
-      fieldNameSize: 100,
-      uploadTimeout: 5 * 60 * 1000, // 5 minutes - prevents slow-loris attacks
+      fileSize: DEFAULT_MAX_FILE_SIZE,
+      files: DEFAULT_MAX_FILES,
+      fields: DEFAULT_MAX_FIELDS,
+      fieldSize: DEFAULT_MAX_FIELD_SIZE,
+      fieldNameSize: DEFAULT_MAX_FIELD_NAME_SIZE,
+      uploadTimeout: DEFAULT_UPLOAD_TIMEOUT,
       ...config.limits
     };
 
@@ -125,6 +133,10 @@ class FluxUpload {
    *
    * @param {http.IncomingMessage} req - HTTP request
    * @returns {Promise<Object>} - { fields, files }
+   * @throws {Error} If request is invalid or missing headers
+   * @throws {Error} If Content-Type is not multipart/form-data
+   * @throws {Error} If boundary is invalid or missing
+   * @throws {Error} If upload timeout is exceeded
    */
   async handle(req) {
     // Validate request object

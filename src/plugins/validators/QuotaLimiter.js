@@ -13,6 +13,9 @@
 const { Transform } = require('stream');
 const Plugin = require('../../core/Plugin');
 
+// Default quota limits
+const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
 class QuotaLimiter extends Plugin {
   /**
    * @param {Object} config
@@ -22,7 +25,7 @@ class QuotaLimiter extends Plugin {
   constructor(config) {
     super(config);
 
-    this.maxFileSize = config.maxFileSize || 100 * 1024 * 1024; // 100MB default
+    this.maxFileSize = config.maxFileSize || DEFAULT_MAX_FILE_SIZE;
     this.maxTotalSize = config.maxTotalSize || null;
     this.totalBytesProcessed = 0;
 

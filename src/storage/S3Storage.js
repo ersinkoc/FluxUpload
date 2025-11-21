@@ -23,6 +23,9 @@ const { URL } = require('url');
 const Plugin = require('../core/Plugin');
 const AwsSignatureV4 = require('../utils/AwsSignatureV4');
 const FileNaming = require('../utils/FileNaming');
+const { getLogger } = require('../observability/Logger');
+
+const logger = getLogger('S3Storage');
 
 class S3Storage extends Plugin {
   /**
@@ -38,6 +41,8 @@ class S3Storage extends Plugin {
    * @param {Object} config.metadata - Custom metadata to add (x-amz-meta-*)
    * @param {string} config.acl - ACL (private, public-read, etc.)
    * @param {string} config.storageClass - Storage class (STANDARD, REDUCED_REDUNDANCY, etc.)
+   * @throws {Error} If bucket or region is not provided
+   * @throws {Error} If prefix contains path traversal sequences
    */
   constructor(config) {
     super(config);
@@ -132,7 +137,7 @@ class S3Storage extends Plugin {
     try {
       await this._deleteFromS3(key);
     } catch (err) {
-      console.error('Failed to cleanup S3 object:', err);
+      logger.error('Failed to cleanup S3 object', { key, bucket: this.bucket, error: err.message });
     }
 
     this.uploadedKeys.delete(context);

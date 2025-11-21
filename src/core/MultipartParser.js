@@ -26,6 +26,14 @@ const PARSER_STATE = {
   END: 3            // After final boundary
 };
 
+// Default limits
+const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_FILES = 10;
+const DEFAULT_MAX_FIELDS = 100;
+const DEFAULT_MAX_FIELD_SIZE = 1024 * 1024; // 1MB
+const DEFAULT_MAX_FIELD_NAME_SIZE = 100;
+const DEFAULT_MAX_HEADER_SIZE = 8192; // 8KB
+
 class MultipartParser extends Writable {
   /**
    * @param {Object} options
@@ -46,12 +54,12 @@ class MultipartParser extends Writable {
 
     this.boundary = Buffer.from(options.boundary);
     this.limits = {
-      fileSize: options.limits?.fileSize || 100 * 1024 * 1024, // 100MB
-      files: options.limits?.files || 10,
-      fields: options.limits?.fields || 100,
-      fieldSize: options.limits?.fieldSize || 1024 * 1024, // 1MB
-      fieldNameSize: options.limits?.fieldNameSize || 100,
-      headerSize: options.limits?.headerSize || 8192 // 8KB - prevents DOS via unbounded headers
+      fileSize: options.limits?.fileSize || DEFAULT_MAX_FILE_SIZE,
+      files: options.limits?.files || DEFAULT_MAX_FILES,
+      fields: options.limits?.fields || DEFAULT_MAX_FIELDS,
+      fieldSize: options.limits?.fieldSize || DEFAULT_MAX_FIELD_SIZE,
+      fieldNameSize: options.limits?.fieldNameSize || DEFAULT_MAX_FIELD_NAME_SIZE,
+      headerSize: options.limits?.headerSize || DEFAULT_MAX_HEADER_SIZE
     };
 
     // Initialize boundary scanner
