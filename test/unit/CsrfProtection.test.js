@@ -246,7 +246,9 @@ runner.describe('CsrfProtection', () => {
     csrf.shutdown();
   });
 
-  runner.it('should get token from query string', async () => {
+  runner.it('should NOT get token from query string (security)', async () => {
+    // BREAKING CHANGE: Query string tokens are no longer supported
+    // for security reasons (logging exposure)
     const csrf = new CsrfProtection({ doubleSubmitCookie: false });
     const token = csrf.generateToken();
 
@@ -259,8 +261,12 @@ runner.describe('CsrfProtection', () => {
       }
     };
 
-    const result = await csrf.process(mockContext);
-    assert.ok(result);
+    // Should reject because query string tokens are not supported
+    await assert.rejects(
+      csrf.process(mockContext),
+      "CSRF token missing",
+      'Query string tokens should be rejected for security'
+    );
 
     csrf.shutdown();
   });

@@ -15,6 +15,13 @@
  */
 
 const Plugin = require('../../core/Plugin');
+const LRUCache = require('../../utils/LRUCache');
+
+// Rate limiter constants
+const DEFAULT_MAX_REQUESTS = 100;
+const DEFAULT_WINDOW_MS = 60000; // 1 minute
+const DEFAULT_CLEANUP_INTERVAL_MS = 300000; // 5 minutes
+const DEFAULT_MAX_BUCKETS = 10000;
 
 /**
  * Token bucket for rate limiting
@@ -94,22 +101,27 @@ class RateLimiter extends Plugin {
    * @param {boolean} [options.skipFailedRequests=false] - Don't count failed uploads
    * @param {Function} [options.handler] - Custom handler when limit is exceeded
    * @param {number} [options.cleanupInterval=300000] - Cleanup interval in ms (5 min)
+   * @param {number} [options.maxBuckets=10000] - Maximum number of buckets to store
+   * @param {boolean} [options.trustProxy=false] - Trust X-Forwarded-For header
    */
   constructor(options = {}) {
     super('RateLimiter');
 
-    this.maxRequests = options.maxRequests || 100;
-    this.windowMs = options.windowMs || 60000; // 1 minute
-    this.keyGenerator = options.keyGenerator || this._defaultKeyGenerator;
+    this.maxRequests = options.maxRequests || DEFAULT_MAX_REQUESTS;
+    this.windowMs = options.windowMs || DEFAULT_WINDOW_MS;
+    this.keyGenerator = options.keyGenerator || this._defaultKeyGenerator.bind(this);
     this.skipSuccessfulRequests = options.skipSuccessfulRequests || false;
     this.skipFailedRequests = options.skipFailedRequests || false;
     this.handler = options.handler || this._defaultHandler;
+    this.trustProxy = options.trustProxy || false;
 
-    // Token buckets per key
-    this.buckets = new Map();
+    // Token buckets per key with LRU eviction (bounded memory)
+    this.buckets = new LRUCache({
+      maxSize: options.maxBuckets || DEFAULT_MAX_BUCKETS
+    });
 
     // Cleanup interval
-    this.cleanupInterval = options.cleanupInterval || 300000; // 5 minutes
+    this.cleanupInterval = options.cleanupInterval || DEFAULT_CLEANUP_INTERVAL_MS;
     this.lastCleanup = Date.now();
 
     // Calculate refill rate
@@ -170,16 +182,36 @@ class RateLimiter extends Plugin {
   /**
    * Default key generator - uses IP address
    *
+   * Note: Returns 'unknown' in buffer parsing mode (no request context).
+   * This means all buffer parses share the same rate limit bucket.
+   * For proper per-client rate limiting, use handle() with HTTP requests.
+   *
+   * Security: Only trusts X-Forwarded-For if trustProxy is enabled.
+   * Without it, uses socket.remoteAddress to prevent IP spoofing.
+   *
    * @private
    */
   _defaultKeyGenerator(context) {
     if (!context.request) {
+      // Buffer parsing mode - all requests share same bucket
+      // This is intentional: buffer parsing is typically used in testing
       return 'unknown';
     }
+
     const req = context.request;
-    return (req.socket && req.socket.remoteAddress) ||
-           req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-           'unknown';
+
+    // If behind a trusted proxy, use X-Forwarded-For (rightmost IP)
+    if (this.trustProxy && req.headers['x-forwarded-for']) {
+      const forwarded = req.headers['x-forwarded-for'];
+      // Get rightmost IP (closest to this server)
+      const ips = forwarded.split(',').map(ip => ip.trim()).filter(Boolean);
+      if (ips.length > 0) {
+        return ips[ips.length - 1];
+      }
+    }
+
+    // Default: use direct socket connection
+    return (req.socket && req.socket.remoteAddress) || 'unknown';
   }
 
   /**

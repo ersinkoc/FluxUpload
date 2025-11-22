@@ -22,6 +22,9 @@ const path = require('path');
 const { pipeline } = require('stream/promises');
 const Plugin = require('../core/Plugin');
 const FileNaming = require('../utils/FileNaming');
+const { getLogger } = require('../observability/Logger');
+
+const logger = getLogger('LocalStorage');
 
 class LocalStorage extends Plugin {
   /**
@@ -31,6 +34,7 @@ class LocalStorage extends Plugin {
    * @param {boolean} config.createDirectories - Auto-create dirs (default: true)
    * @param {number} config.fileMode - File permissions (default: 0o644)
    * @param {number} config.dirMode - Directory permissions (default: 0o755)
+   * @throws {Error} If destination is not provided
    */
   constructor(config) {
     super(config);
@@ -138,7 +142,7 @@ class LocalStorage extends Plugin {
     } catch (err) {
       // Ignore errors (file might not exist)
       if (err.code !== 'ENOENT') {
-        console.error('Failed to cleanup temp file:', err);
+        logger.error('Failed to cleanup temp file', { tempPath, error: err.message });
       }
     }
 

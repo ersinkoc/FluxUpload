@@ -230,8 +230,12 @@ function createMockRequest(body, boundary) {
 
   const stream = new Readable({
     read() {
-      this.push(bodyBuffer);
-      this.push(null);
+      // Defer data push to next tick to simulate async HTTP stream behavior
+      // This prevents synchronous errors from being unhandled
+      setImmediate(() => {
+        this.push(bodyBuffer);
+        this.push(null);
+      });
     }
   });
 

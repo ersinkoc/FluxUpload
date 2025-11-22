@@ -14,6 +14,14 @@
 const MultipartParser = require('./core/MultipartParser');
 const { PipelineManager, StreamMultiplexer } = require('./core/PipelineManager');
 
+// Default limit constants
+const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_FILES = 10;
+const DEFAULT_MAX_FIELDS = 100;
+const DEFAULT_MAX_FIELD_SIZE = 1024 * 1024; // 1MB
+const DEFAULT_MAX_FIELD_NAME_SIZE = 100;
+const DEFAULT_UPLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
 class FluxUpload {
   /**
    * @param {Object} config
@@ -34,11 +42,12 @@ class FluxUpload {
 
     // Limits
     this.limits = {
-      fileSize: 100 * 1024 * 1024, // 100MB
-      files: 10,
-      fields: 100,
-      fieldSize: 1024 * 1024, // 1MB
-      fieldNameSize: 100,
+      fileSize: DEFAULT_MAX_FILE_SIZE,
+      files: DEFAULT_MAX_FILES,
+      fields: DEFAULT_MAX_FIELDS,
+      fieldSize: DEFAULT_MAX_FIELD_SIZE,
+      fieldNameSize: DEFAULT_MAX_FIELD_NAME_SIZE,
+      uploadTimeout: DEFAULT_UPLOAD_TIMEOUT,
       ...config.limits
     };
 
@@ -124,12 +133,33 @@ class FluxUpload {
    *
    * @param {http.IncomingMessage} req - HTTP request
    * @returns {Promise<Object>} - { fields, files }
+   * @throws {Error} If request is invalid or missing headers
+   * @throws {Error} If Content-Type is not multipart/form-data
+   * @throws {Error} If boundary is invalid or missing
+   * @throws {Error} If upload timeout is exceeded
    */
   async handle(req) {
     // Validate request object
     if (!req || !req.headers) {
       throw new Error('Invalid request object: missing headers');
     }
+
+    // Setup timeout to prevent slow-loris attacks
+    let timeoutId = null;
+    const timeoutPromise = new Promise((_, reject) => {
+      if (this.limits.uploadTimeout > 0) {
+        timeoutId = setTimeout(() => {
+          const error = new Error(`Upload timeout: exceeded ${this.limits.uploadTimeout}ms limit`);
+          error.code = 'UPLOAD_TIMEOUT';
+          error.statusCode = 408;
+          // Abort the request stream if possible
+          if (req && typeof req.destroy === 'function') {
+            req.destroy(error);
+          }
+          reject(error);
+        }, this.limits.uploadTimeout);
+      }
+    });
 
     // Reset state
     this.fields = {};
@@ -144,6 +174,11 @@ class FluxUpload {
     }
 
     const boundary = MultipartParser.getBoundary(contentType);
+
+    // Validate boundary exists and is not empty
+    if (!boundary || boundary.length === 0) {
+      throw new Error('Invalid or missing boundary in Content-Type header');
+    }
 
     // Create parser
     const parser = new MultipartParser({
@@ -185,7 +220,7 @@ class FluxUpload {
     });
 
     // Wait for parsing to complete
-    return new Promise((resolve, reject) => {
+    const uploadPromise = new Promise((resolve, reject) => {
       parser.on('finish', async () => {
         // Wait for all file handlers to complete
         try {
@@ -214,6 +249,22 @@ class FluxUpload {
       // Pipe request to parser
       req.pipe(parser);
     });
+
+    // Race between upload and timeout
+    try {
+      const result = this.limits.uploadTimeout > 0
+        ? await Promise.race([uploadPromise, timeoutPromise])
+        : await uploadPromise;
+
+      // Clear timeout on success
+      if (timeoutId) clearTimeout(timeoutId);
+
+      return result;
+    } catch (error) {
+      // Clear timeout on error
+      if (timeoutId) clearTimeout(timeoutId);
+      throw error;
+    }
   }
 
   /**

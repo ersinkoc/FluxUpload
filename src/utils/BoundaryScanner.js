@@ -59,6 +59,15 @@ class BoundaryScanner {
     const keepSize = Math.min(this.boundaryLength - 1, remainingBytes);
     const newCarryover = keepSize > 0 ? searchBuffer.slice(searchBuffer.length - keepSize) : Buffer.alloc(0);
 
+    // Defensive validation: carryover should NEVER exceed boundary length
+    // This prevents memory exhaustion attacks via malformed boundaries
+    if (newCarryover.length >= this.boundaryLength) {
+      throw new Error(
+        `Boundary scanner buffer overflow: carryover size ${newCarryover.length} ` +
+        `exceeds maximum ${this.boundaryLength - 1}. Possible attack or malformed data.`
+      );
+    }
+
     // Update internal carryover for next scan
     this.carryover = newCarryover;
 

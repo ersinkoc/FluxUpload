@@ -54,7 +54,8 @@ runner.describe('MagicByteDetector', () => {
     const detector = new MagicByteDetector({ allowed: [] });
 
     assert.ok(detector);
-    assert.equal(detector.bytesToRead, 16);
+    // Increased from 16 to 32 for better detection
+    assert.equal(detector.bytesToRead, 32);
   });
 
   runner.it('should detect PNG and add to metadata', async () => {
