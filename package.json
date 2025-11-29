@@ -1,6 +1,6 @@
 {
   "name": "fluxupload",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Zero-dependency, stream-first file upload handler for Node.js with plugin-based architecture",
   "main": "src/index.js",
   "types": "src/index.d.ts",

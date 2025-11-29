@@ -25,8 +25,7 @@ const AwsSignatureV4 = require('../utils/AwsSignatureV4');
 const FileNaming = require('../utils/FileNaming');
 const { getLogger } = require('../observability/Logger');
 
-// Max response body size to prevent DoS (1MB should be plenty for S3 error responses)
-const MAX_RESPONSE_BODY_SIZE = 1024 * 1024;
+const logger = getLogger('S3Storage');
 
 class S3Storage extends Plugin {
   /**
@@ -42,6 +41,8 @@ class S3Storage extends Plugin {
    * @param {Object} config.metadata - Custom metadata to add (x-amz-meta-*)
    * @param {string} config.acl - ACL (private, public-read, etc.)
    * @param {string} config.storageClass - Storage class (STANDARD, REDUCED_REDUNDANCY, etc.)
+   * @throws {Error} If bucket or region is not provided
+   * @throws {Error} If prefix contains path traversal sequences
    */
   constructor(config) {
     super(config);
@@ -53,7 +54,7 @@ class S3Storage extends Plugin {
     this.bucket = config.bucket;
     this.region = config.region;
     this.endpoint = config.endpoint || null;
-    this.prefix = config.prefix || '';
+    this.prefix = this._validatePrefix(config.prefix || '');
     this.acl = config.acl || 'private';
     this.storageClass = config.storageClass || 'STANDARD';
     this.customMetadata = config.metadata || {};
@@ -90,6 +91,9 @@ class S3Storage extends Plugin {
     );
 
     const key = this.prefix ? `${this.prefix}/${filename}` : filename;
+
+    // Validate key to prevent path traversal
+    this._validateKey(key);
 
     // Track for cleanup
     this.uploadedKeys.set(context, key);
@@ -133,8 +137,7 @@ class S3Storage extends Plugin {
     try {
       await this._deleteFromS3(key);
     } catch (err) {
-      const logger = getLogger();
-      logger.error('Failed to cleanup S3 object', { key, error: err.message });
+      logger.error('Failed to cleanup S3 object', { key, bucket: this.bucket, error: err.message });
     }
 
     this.uploadedKeys.delete(context);
@@ -204,20 +207,13 @@ class S3Storage extends Plugin {
 
       // Create request
       const req = client.request(requestOptions, (res) => {
-        const chunks = [];
-        let totalSize = 0;
+        let responseBody = '';
 
         res.on('data', (chunk) => {
-          totalSize += chunk.length;
-          // Limit response body size to prevent DoS
-          if (totalSize <= MAX_RESPONSE_BODY_SIZE) {
-            chunks.push(chunk);
-          }
+          responseBody += chunk;
         });
 
         res.on('end', () => {
-          const responseBody = Buffer.concat(chunks).toString('utf8');
-
           if (res.statusCode >= 200 && res.statusCode < 300) {
             // Success
             const etag = res.headers['etag'];
@@ -234,10 +230,6 @@ class S3Storage extends Plugin {
             error.body = responseBody;
             reject(error);
           }
-        });
-
-        res.on('error', (err) => {
-          reject(new Error(`S3 response error: ${err.message}`));
         });
       });
 
@@ -348,6 +340,59 @@ class S3Storage extends Plugin {
       url: url,
       expiresIn: options.expiresIn || 3600
     });
+  }
+
+  /**
+   * Validate prefix to prevent path traversal
+   *
+   * @private
+   * @param {string} prefix
+   * @returns {string} - Validated prefix
+   * @throws {Error} - If prefix contains path traversal
+   */
+  _validatePrefix(prefix) {
+    if (!prefix) return '';
+
+    // Normalize and check for path traversal
+    const normalized = prefix.replace(/\\/g, '/').replace(/\/+/g, '/');
+
+    if (normalized.includes('..')) {
+      throw new Error('S3 prefix cannot contain path traversal sequences (..)');
+    }
+
+    // Remove leading/trailing slashes
+    return normalized.replace(/^\/+|\/+$/g, '');
+  }
+
+  /**
+   * Validate S3 key to prevent path traversal
+   *
+   * @private
+   * @param {string} key
+   * @throws {Error} - If key contains path traversal
+   */
+  _validateKey(key) {
+    if (!key) {
+      throw new Error('S3 key cannot be empty');
+    }
+
+    // Normalize path separators
+    const normalized = key.replace(/\\/g, '/');
+
+    // Check for path traversal
+    if (normalized.includes('..')) {
+      throw new Error(`Invalid S3 key: path traversal detected (${key})`);
+    }
+
+    // Check for absolute paths (should be relative)
+    if (normalized.startsWith('/')) {
+      throw new Error(`Invalid S3 key: absolute paths not allowed (${key})`);
+    }
+
+    // Validate key doesn't escape prefix
+    if (this.prefix && !normalized.startsWith(this.prefix + '/') && normalized !== this.prefix) {
+      throw new Error(`Invalid S3 key: must be within prefix '${this.prefix}' (${key})`);
+    }
   }
 }
 

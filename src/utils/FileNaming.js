@@ -65,7 +65,7 @@ class FileNaming {
 
     switch (this.strategy) {
       case 'original':
-        generatedName = baseName; // Already sanitized above
+        generatedName = baseName || 'unnamed'; // Already sanitized above
         break;
 
       case 'uuid':
@@ -205,11 +205,16 @@ class FileNaming {
     }
 
     const ext = path.extname(filename);
-    const nameWithoutExt = filename.slice(0, -ext.length);
+    const nameWithoutExt = ext.length > 0 ? filename.slice(0, -ext.length) : filename;
+
+    // If extension alone exceeds max length, truncate extension too
+    if (ext.length >= this.maxLength) {
+      return ext.slice(0, this.maxLength);
+    }
 
     // Truncate name part, keep extension
     const maxNameLength = this.maxLength - ext.length;
-    return nameWithoutExt.slice(0, maxNameLength) + ext;
+    return nameWithoutExt.slice(0, Math.max(1, maxNameLength)) + ext;
   }
 
   /**

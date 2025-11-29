@@ -13,6 +13,9 @@
 const { Transform } = require('stream');
 const Plugin = require('../../core/Plugin');
 
+// Default quota limits
+const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
 class QuotaLimiter extends Plugin {
   /**
    * @param {Object} config
@@ -22,7 +25,7 @@ class QuotaLimiter extends Plugin {
   constructor(config) {
     super(config);
 
-    this.maxFileSize = config.maxFileSize || 100 * 1024 * 1024; // 100MB default
+    this.maxFileSize = config.maxFileSize || DEFAULT_MAX_FILE_SIZE;
     this.maxTotalSize = config.maxTotalSize || null;
     this.totalBytesProcessed = 0;
 
@@ -39,17 +42,15 @@ class QuotaLimiter extends Plugin {
    * Wrap stream with byte counter
    */
   async process(context) {
+    // Validate stream exists
+    if (!context.stream || typeof context.stream.pipe !== 'function') {
+      const error = new Error('QuotaLimiter requires a valid readable stream in context');
+      error.code = 'INVALID_STREAM';
+      throw error;
+    }
+
     const limiterStream = new ByteCounterStream({
       maxBytes: this.maxFileSize
-    });
-
-    // Store error for later re-throwing (allows PipelineManager to catch it)
-    let pendingError = null;
-
-    // Attach error handler to limiterStream BEFORE piping to prevent unhandled errors
-    // This captures the error so it can be properly propagated through the stream chain
-    limiterStream.on('error', (err) => {
-      pendingError = err;
     });
 
     // Track total bytes across all files
@@ -63,10 +64,18 @@ class QuotaLimiter extends Plugin {
       }
     });
 
-    // Pipe original stream through limiter and mutate context in place
+    // Propagate limiter errors to original stream for proper error handling
+    limiterStream.on('error', (err) => {
+      // Propagate error to source stream so PipelineManager can catch it
+      if (context.stream && typeof context.stream.destroy === 'function') {
+        context.stream.destroy(err);
+      }
+    });
+
+    // Pipe original stream through limiter
     context.stream = context.stream.pipe(limiterStream);
 
-    // Return context (same object, mutated)
+    // Return context immediately - stream completion handled by PipelineManager
     return context;
   }
 

@@ -26,6 +26,14 @@ const PARSER_STATE = {
   END: 3            // After final boundary
 };
 
+// Default limits
+const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_FILES = 10;
+const DEFAULT_MAX_FIELDS = 100;
+const DEFAULT_MAX_FIELD_SIZE = 1024 * 1024; // 1MB
+const DEFAULT_MAX_FIELD_NAME_SIZE = 100;
+const DEFAULT_MAX_HEADER_SIZE = 8192; // 8KB
+
 class MultipartParser extends Writable {
   /**
    * @param {Object} options
@@ -46,11 +54,12 @@ class MultipartParser extends Writable {
 
     this.boundary = Buffer.from(options.boundary);
     this.limits = {
-      fileSize: options.limits?.fileSize || 100 * 1024 * 1024, // 100MB
-      files: options.limits?.files || 10,
-      fields: options.limits?.fields || 100,
-      fieldSize: options.limits?.fieldSize || 1024 * 1024, // 1MB
-      fieldNameSize: options.limits?.fieldNameSize || 100
+      fileSize: options.limits?.fileSize || DEFAULT_MAX_FILE_SIZE,
+      files: options.limits?.files || DEFAULT_MAX_FILES,
+      fields: options.limits?.fields || DEFAULT_MAX_FIELDS,
+      fieldSize: options.limits?.fieldSize || DEFAULT_MAX_FIELD_SIZE,
+      fieldNameSize: options.limits?.fieldNameSize || DEFAULT_MAX_FIELD_NAME_SIZE,
+      headerSize: options.limits?.headerSize || DEFAULT_MAX_HEADER_SIZE
     };
 
     // Initialize boundary scanner
@@ -134,8 +143,8 @@ class MultipartParser extends Writable {
         this._handleBodyData(part.data);
       }
 
-      // Handle the boundary
-      this._handleBoundary(chunk, part.boundaryIndex);
+      // Handle the boundary - use searchBuffer for correct indexing
+      this._handleBoundary(result.searchBuffer, part.boundaryIndex);
     }
 
     this.scanner.carryover = result.carryover;
@@ -179,18 +188,26 @@ class MultipartParser extends Writable {
     } else if (this.state === PARSER_STATE.HEADER) {
       // Accumulate header data
       this.headerBuffer = Buffer.concat([this.headerBuffer, data]);
+
+      // Prevent DOS attack via unbounded header buffer
+      if (this.headerBuffer.length > this.limits.headerSize) {
+        this.emit('limit', 'headerSize', this.limits.headerSize);
+        throw new Error(`Header size limit exceeded: ${this.limits.headerSize} bytes`);
+      }
     }
   }
 
   /**
    * Handle boundary detection
-   * @param {Buffer} chunk - Original chunk (for context)
-   * @param {number} boundaryIndex - Position of boundary
+   * @param {Buffer} searchBuffer - The buffer being searched (includes carryover)
+   * @param {number} boundaryIndex - Position of boundary in searchBuffer
    */
-  _handleBoundary(chunk, boundaryIndex) {
+  _handleBoundary(searchBuffer, boundaryIndex) {
     // Check if this is the final boundary (ends with --)
     const afterBoundary = boundaryIndex + this.scanner.boundaryLength;
-    const isFinal = chunk[afterBoundary] === 0x2D && chunk[afterBoundary + 1] === 0x2D; // "--"
+    const isFinal = afterBoundary + 1 < searchBuffer.length &&
+                    searchBuffer[afterBoundary] === 0x2D &&
+                    searchBuffer[afterBoundary + 1] === 0x2D; // "--"
 
     if (isFinal) {
       // Final boundary - parse headers if we were collecting them

@@ -16,7 +16,16 @@
 
 const crypto = require('crypto');
 const Plugin = require('../../core/Plugin');
+const LRUCache = require('../../utils/LRUCache');
 const { getLogger } = require('../../observability/Logger');
+
+const logger = getLogger('CsrfProtection');
+
+// CSRF protection constants
+const DEFAULT_TOKEN_LENGTH = 32; // bytes
+const DEFAULT_TOKEN_LIFETIME = 3600000; // 1 hour in milliseconds
+const DEFAULT_MAX_TOKENS = 10000;
+const CLEANUP_INTERVAL_MS = 60000; // 1 minute
 
 class CsrfProtection extends Plugin {
   /**
@@ -28,31 +37,56 @@ class CsrfProtection extends Plugin {
    * @param {Function} [options.getToken] - Custom token getter from request
    * @param {Function} [options.validateToken] - Custom token validator
    * @param {boolean} [options.doubleSubmitCookie=true] - Use double-submit cookie pattern
+   * @param {number} [options.maxTokens=10000] - Maximum number of tokens to store
    */
   constructor(options = {}) {
     super('CsrfProtection');
 
-    this.tokenLength = options.tokenLength || 32;
-    this.tokenLifetime = options.tokenLifetime || 3600000; // 1 hour
+    this.tokenLength = options.tokenLength || DEFAULT_TOKEN_LENGTH;
+    this.tokenLifetime = options.tokenLifetime || DEFAULT_TOKEN_LIFETIME;
     this.cookieName = options.cookieName || 'csrf-token';
     this.headerName = options.headerName || 'X-CSRF-Token';
     this.doubleSubmitCookie = options.doubleSubmitCookie !== false;
     this.getTokenFn = options.getToken || this._defaultGetToken.bind(this);
     this.validateTokenFn = options.validateToken || this._defaultValidateToken.bind(this);
 
-    // In-memory token store (for stateful validation)
-    this.tokens = new Map();
+    // In-memory token store with LRU eviction (bounded memory)
+    this.tokens = new LRUCache({
+      maxSize: options.maxTokens || DEFAULT_MAX_TOKENS,
+      ttl: this.tokenLifetime
+    });
 
-    // Cleanup expired tokens periodically
-    this.cleanupInterval = setInterval(() => {
-      this._cleanupExpiredTokens();
-    }, 60000); // Every minute
+    // Cleanup interval will be started in initialize()
+    this.cleanupInterval = null;
+  }
+
+  /**
+   * Initialize plugin - start cleanup interval
+   */
+  async initialize() {
+    // Start cleanup interval only when plugin is active
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => {
+        this._cleanupExpiredTokens();
+      }, CLEANUP_INTERVAL_MS);
+    }
   }
 
   /**
    * Validate CSRF token before processing upload
    */
   async process(context) {
+    if (!context.request) {
+      const error = new Error(
+        'CsrfProtection requires HTTP request context. ' +
+        'This validator cannot be used in buffer parsing mode (parseBuffer). ' +
+        'Remove CsrfProtection from validators or use handle() instead.'
+      );
+      error.code = 'CSRF_NO_REQUEST';
+      error.statusCode = 400;
+      throw error;
+    }
+
     const req = context.request;
 
     // Get token from request
@@ -155,12 +189,16 @@ class CsrfProtection extends Plugin {
   }
 
   /**
-   * Default token getter - tries header, body, query
+   * Default token getter - tries header and cookie only
+   *
+   * SECURITY: Query string tokens are NOT supported due to logging exposure.
+   * Tokens in URLs appear in server logs, proxy logs, browser history, and
+   * referrer headers, which completely defeats CSRF protection.
    *
    * @private
    */
   _defaultGetToken(req) {
-    // Check header
+    // Check header (most secure)
     let token = req.headers[this.headerName.toLowerCase()];
 
     if (token) {
@@ -172,25 +210,26 @@ class CsrfProtection extends Plugin {
       token = this._getCookieToken(req);
     }
 
-    // Check query string (less secure, but supported)
-    if (!token && req.url) {
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      token = url.searchParams.get('csrf_token');
-    }
+    // Query string tokens are NOT supported for security reasons
+    // If you need query string support, you MUST provide a custom getToken function
+    // and accept the security implications
 
     return token;
   }
 
   /**
-   * Default token validator
+   * Default token validator (timing-safe)
    *
    * @private
    */
   _defaultValidateToken(req, token) {
     if (this.doubleSubmitCookie) {
-      // Double-submit cookie pattern
+      // Double-submit cookie pattern with timing-safe comparison
       const cookieToken = this._getCookieToken(req);
-      return cookieToken && cookieToken === token;
+      if (!cookieToken || !token) {
+        return false;
+      }
+      return this._timingSafeEqual(cookieToken, token);
     } else {
       // Stateful validation
       return this.verifyToken(token);
@@ -219,14 +258,12 @@ class CsrfProtection extends Plugin {
     return cookieHeader.split(';').reduce((cookies, cookie) => {
       const parts = cookie.trim().split('=');
       const name = parts[0];
-      const value = parts.slice(1).join('='); // Handle values with = in them
-
-      if (name && value !== undefined) {
+      const value = parts.slice(1).join('='); // Handle values containing '='
+      if (name && value !== undefined && value !== '') {
         try {
           cookies[name] = decodeURIComponent(value);
-        } catch (err) {
-          // Malformed cookie value - use raw value
-          cookies[name] = value;
+        } catch {
+          cookies[name] = value; // Use raw value if decode fails
         }
       }
       return cookies;
@@ -239,19 +276,44 @@ class CsrfProtection extends Plugin {
    * @private
    */
   _cleanupExpiredTokens() {
-    const now = Date.now();
-    let cleaned = 0;
-
-    for (const [token, data] of this.tokens.entries()) {
-      if (now > data.expires) {
-        this.tokens.delete(token);
-        cleaned++;
-      }
-    }
+    // LRUCache handles TTL-based cleanup automatically
+    const cleaned = this.tokens.cleanup();
 
     if (cleaned > 0) {
-      const logger = getLogger();
-      logger.debug('CSRF tokens cleaned up', { count: cleaned });
+      logger.debug('Cleaned up expired CSRF tokens', { count: cleaned });
+    }
+  }
+
+  /**
+   * Timing-safe string comparison
+   *
+   * Prevents timing attacks by ensuring comparison takes constant time
+   * regardless of where strings differ.
+   *
+   * @private
+   */
+  _timingSafeEqual(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') {
+      return false;
+    }
+
+    // Convert to buffers for crypto.timingSafeEqual
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+
+    // Must be same length for timingSafeEqual
+    if (bufA.length !== bufB.length) {
+      // Still do constant-time comparison to prevent length-based timing attacks
+      // Compare against a dummy buffer of same length as b
+      const dummyBuf = Buffer.alloc(bufB.length);
+      crypto.timingSafeEqual(bufB, dummyBuf);
+      return false;
+    }
+
+    try {
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch (err) {
+      return false;
     }
   }
 
@@ -261,6 +323,7 @@ class CsrfProtection extends Plugin {
   async shutdown() {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
     this.clearTokens();
   }

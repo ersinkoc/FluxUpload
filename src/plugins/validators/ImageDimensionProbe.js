@@ -22,6 +22,10 @@
 const { Transform } = require('stream');
 const Plugin = require('../../core/Plugin');
 
+// Image validation constants
+const DEFAULT_PROBE_BUFFER_SIZE = 8192; // 8KB - enough for most image format headers
+const ABSOLUTE_MAX_DIMENSION = 100000; // 100,000 pixels - larger than most cameras
+
 class ImageDimensionProbe extends Plugin {
   /**
    * @param {Object} config
@@ -38,12 +42,13 @@ class ImageDimensionProbe extends Plugin {
     this.maxWidth = config.maxWidth || Infinity;
     this.minHeight = config.minHeight || 0;
     this.maxHeight = config.maxHeight || Infinity;
-    this.bytesToRead = config.bytesToRead || 8192; // 8KB should be enough for most formats
+    this.bytesToRead = config.bytesToRead || DEFAULT_PROBE_BUFFER_SIZE;
   }
 
   async process(context) {
     // Only probe if this is an image
-    const mimeType = context.metadata.detectedMimeType || context.fileInfo.mimeType;
+    const mimeType = (context.metadata && context.metadata.detectedMimeType) ||
+                     (context.fileInfo && context.fileInfo.mimeType);
     if (!mimeType || !mimeType.startsWith('image/')) {
       // Not an image - skip
       return context;
@@ -80,6 +85,21 @@ class ImageDimensionProbe extends Plugin {
   _validateDimensions(dimensions) {
     const { width, height } = dimensions;
 
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      throw new Error('Invalid image dimensions: must be finite numbers');
+    }
+
+    if (width > ABSOLUTE_MAX_DIMENSION || height > ABSOLUTE_MAX_DIMENSION) {
+      throw new Error(
+        `Image dimensions exceed absolute maximum (${ABSOLUTE_MAX_DIMENSION}px): ` +
+        `${width}x${height}. This may indicate a malformed or malicious image.`
+      );
+    }
+
+    if (width < 0 || height < 0) {
+      throw new Error(`Invalid image dimensions: negative values not allowed (${width}x${height})`);
+    }
+
     if (width < this.minWidth) {
       throw new Error(`Image width ${width}px is below minimum ${this.minWidth}px`);
     }
@@ -113,7 +133,7 @@ class DimensionProbeStream extends Transform {
     if (!this.probed) {
       this.buffer = Buffer.concat([this.buffer, chunk]);
 
-      if (this.buffer.length >= this.bytesToRead || this.buffer.length >= 8192) {
+      if (this.buffer.length >= this.bytesToRead || this.buffer.length >= DEFAULT_PROBE_BUFFER_SIZE) {
         try {
           const dimensions = this._extractDimensions();
           if (dimensions) {

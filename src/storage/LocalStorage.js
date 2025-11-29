@@ -24,6 +24,8 @@ const Plugin = require('../core/Plugin');
 const FileNaming = require('../utils/FileNaming');
 const { getLogger } = require('../observability/Logger');
 
+const logger = getLogger('LocalStorage');
+
 class LocalStorage extends Plugin {
   /**
    * @param {Object} config
@@ -32,6 +34,7 @@ class LocalStorage extends Plugin {
    * @param {boolean} config.createDirectories - Auto-create dirs (default: true)
    * @param {number} config.fileMode - File permissions (default: 0o644)
    * @param {number} config.dirMode - Directory permissions (default: 0o755)
+   * @throws {Error} If destination is not provided
    */
   constructor(config) {
     super(config);
@@ -68,6 +71,11 @@ class LocalStorage extends Plugin {
   }
 
   async process(context) {
+    // Validate context has required properties
+    if (!context.fileInfo || !context.fileInfo.filename) {
+      throw new Error('LocalStorage requires context.fileInfo.filename');
+    }
+
     // Generate filename
     const filename = this.naming.generate(
       context.fileInfo.filename,
@@ -134,8 +142,7 @@ class LocalStorage extends Plugin {
     } catch (err) {
       // Ignore errors (file might not exist)
       if (err.code !== 'ENOENT') {
-        const logger = getLogger();
-        logger.error('Failed to cleanup temp file', { path: tempPath, error: err.message });
+        logger.error('Failed to cleanup temp file', { tempPath, error: err.message });
       }
     }
 
@@ -179,7 +186,7 @@ class LocalStorage extends Plugin {
   _generateUrl(filename) {
     // Default: relative path
     // In a real application, this might return a full URL
-    return `/uploads/${filename}`;
+    return `/uploads/${encodeURIComponent(filename)}`;
   }
 
   /**
