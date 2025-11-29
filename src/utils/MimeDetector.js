@@ -112,10 +112,12 @@ class MimeDetector {
         ],
         offset: 0,
         verify: (buffer) => {
-          // DOCX files are ZIP archives containing specific structure
-          // For simplicity, we just check ZIP signature
-          // More robust: parse ZIP and check for word/ directory
-          return true;
+          // DOCX files contain "[Content_Types].xml" or "word/" in the ZIP
+          // Check for common markers in the first 1KB of the file
+          const str = buffer.toString('utf8', 0, Math.min(buffer.length, 2000));
+          return str.includes('[Content_Types].xml') ||
+                 str.includes('word/') ||
+                 str.includes('word\\');
         }
       },
       {
@@ -124,7 +126,14 @@ class MimeDetector {
         signatures: [
           Buffer.from([0x50, 0x4B, 0x03, 0x04])
         ],
-        offset: 0
+        offset: 0,
+        verify: (buffer) => {
+          // XLSX files contain "[Content_Types].xml" or "xl/" in the ZIP
+          const str = buffer.toString('utf8', 0, Math.min(buffer.length, 2000));
+          return str.includes('[Content_Types].xml') ||
+                 str.includes('xl/') ||
+                 str.includes('xl\\');
+        }
       },
 
       // Audio

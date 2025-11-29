@@ -33,8 +33,9 @@ class SignedUrls {
     this.defaultExpiry = options.defaultExpiry || 3600; // 1 hour
     this.algorithm = options.algorithm || 'sha256';
 
-    // Track used signatures to prevent replay attacks
-    this.usedSignatures = new Set();
+    // Track used signatures with expiry times to prevent replay attacks
+    // Map: signature -> expiryTimestamp
+    this.usedSignatures = new Map();
     this.cleanupInterval = setInterval(() => {
       this._cleanup();
     }, 300000); // Cleanup every 5 minutes
@@ -149,9 +150,9 @@ class SignedUrls {
         };
       }
 
-      // Mark signature as used
+      // Mark signature as used with expiry time
       if (preventReplay) {
-        this.usedSignatures.add(signature);
+        this.usedSignatures.set(signature, expires);
       }
 
       // Extract constraints
@@ -253,11 +254,13 @@ class SignedUrls {
    * @private
    */
   _cleanup() {
-    // In production, you'd want to store signatures with timestamps
-    // and only cleanup expired ones. For simplicity, we clear all.
-    // A better approach would use a Map with expiry times.
-    if (this.usedSignatures.size > 10000) {
-      this.usedSignatures.clear();
+    const now = Math.floor(Date.now() / 1000);
+
+    // Remove only expired signatures
+    for (const [signature, expiryTime] of this.usedSignatures.entries()) {
+      if (now > expiryTime) {
+        this.usedSignatures.delete(signature);
+      }
     }
   }
 

@@ -22,6 +22,7 @@ const path = require('path');
 const { pipeline } = require('stream/promises');
 const Plugin = require('../core/Plugin');
 const FileNaming = require('../utils/FileNaming');
+const { getLogger } = require('../observability/Logger');
 
 class LocalStorage extends Plugin {
   /**
@@ -133,7 +134,8 @@ class LocalStorage extends Plugin {
     } catch (err) {
       // Ignore errors (file might not exist)
       if (err.code !== 'ENOENT') {
-        console.error('Failed to cleanup temp file:', err);
+        const logger = getLogger();
+        logger.error('Failed to cleanup temp file', { path: tempPath, error: err.message });
       }
     }
 

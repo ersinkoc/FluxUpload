@@ -284,7 +284,7 @@ remote_write:
 
 ## Resources
 
-- [Prometheus Documentation](https://prometheus.io/docs/)
-- [Grafana Documentation](https://grafana.com/docs/)
-- [PromQL Tutorial](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-- [Grafana Dashboard Best Practices](https://grafana.com/docs/grafana/latest/best-practices/)
+- [Prometheus Documentation](https://prometheus.io/website/)
+- [Grafana Documentation](https://grafana.com/website/)
+- [PromQL Tutorial](https://prometheus.io/website/prometheus/latest/querying/basics/)
+- [Grafana Dashboard Best Practices](https://grafana.com/website/grafana/latest/best-practices/)

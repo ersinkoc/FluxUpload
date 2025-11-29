@@ -17,6 +17,7 @@
 
 const { pipeline } = require('stream/promises');
 const { PassThrough } = require('stream');
+const { getLogger } = require('../observability/Logger');
 
 class PipelineManager {
   /**
@@ -57,58 +58,80 @@ class PipelineManager {
 
     this.executedPlugins = [];
 
-    return new Promise(async (resolve, reject) => {
-      let rejected = false;
+    // Track all streams for error handling
+    const streams = new Set();
+    let streamError = null;
 
-      // Setup error handler for the stream
-      const errorHandler = async (error) => {
-        if (rejected) return; // Avoid multiple rejects
-        rejected = true;
-        await this._cleanup(context, error);
-        reject(error);
-      };
-
-      // Listen for errors on source stream from the start
-      if (sourceStream) {
-        sourceStream.on('error', errorHandler);
-      }
-
-      try {
-        // Phase 1: Validation
-        // Validators can inspect metadata and first bytes without consuming stream
-        for (const validator of this.validators) {
-          await validator.process(context);
-          this.executedPlugins.push(validator);
-
-          // If validator wrapped the stream, listen for errors
-          if (context.stream && context.stream !== sourceStream) {
-            context.stream.on('error', errorHandler);
-          }
-        }
-
-        // Phase 2: Transformation
-        // Transformers wrap the stream with transform streams
-        for (const transformer of this.transformers) {
-          context.stream = await this._wrapStream(context.stream, transformer, context);
-          this.executedPlugins.push(transformer);
-
-          // Listen for errors on transformed stream
-          if (context.stream) {
-            context.stream.on('error', errorHandler);
-          }
-        }
-
-        // Phase 3: Storage
-        // Storage plugin is the final destination
-        const result = await this.storage.process(context);
-        this.executedPlugins.push(this.storage);
-
-        resolve(result);
-
-      } catch (error) {
-        await errorHandler(error);
-      }
+    // Create deferred promise for stream errors
+    let rejectStreamError;
+    const streamErrorPromise = new Promise((_, reject) => {
+      rejectStreamError = reject;
     });
+
+    // Create error handler that captures stream errors
+    const handleStreamError = (error) => {
+      if (streamError) return; // Avoid multiple error handling
+      streamError = error;
+      // Destroy all tracked streams
+      for (const stream of streams) {
+        if (stream && typeof stream.destroy === 'function' && !stream.destroyed) {
+          stream.destroy();
+        }
+      }
+      rejectStreamError(error);
+    };
+
+    // Helper to track stream and attach error handler
+    const trackStream = (stream) => {
+      if (stream && !streams.has(stream)) {
+        streams.add(stream);
+        stream.once('error', handleStreamError);
+      }
+    };
+
+    // Track source stream
+    trackStream(sourceStream);
+
+    try {
+      // Phase 1: Validation
+      // Validators can inspect metadata and first bytes without consuming stream
+      for (const validator of this.validators) {
+        const result = await validator.process(context);
+        // Update context if validator returned a new one
+        if (result && result.stream) {
+          context.stream = result.stream;
+          context.metadata = result.metadata || context.metadata;
+        }
+        this.executedPlugins.push(validator);
+
+        // Track new stream if validator wrapped it
+        trackStream(context.stream);
+      }
+
+      // Phase 2: Transformation
+      // Transformers wrap the stream with transform streams
+      for (const transformer of this.transformers) {
+        context.stream = await this._wrapStream(context.stream, transformer, context);
+        this.executedPlugins.push(transformer);
+
+        // Track transformed stream
+        trackStream(context.stream);
+      }
+
+      // Phase 3: Storage
+      // Race between storage completion and stream errors
+      const result = await Promise.race([
+        this.storage.process(context),
+        streamErrorPromise
+      ]);
+      this.executedPlugins.push(this.storage);
+
+      return result;
+
+    } catch (error) {
+      await this._cleanup(context, error);
+      throw error;
+    }
   }
 
   /**
@@ -151,7 +174,11 @@ class PipelineManager {
         await plugin.cleanup(context, error);
       } catch (cleanupError) {
         // Log but don't throw - we want to cleanup all plugins
-        console.error(`Cleanup error in ${plugin.name}:`, cleanupError);
+        const logger = getLogger();
+        logger.error('Cleanup error in plugin', {
+          plugin: plugin.name,
+          error: cleanupError.message
+        });
       }
     }
   }

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true', mobileMenu: false, sidebarOpen: true }"
+      :class="{ 'dark': darkMode }" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - FluxUpload</title>
+    <meta name="description" content="Complete guide to using FluxUpload - the zero-dependency file upload handler for Node.js">
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        [x-cloak] { display: none !important; }
+        pre[class*="language-"] { border-radius: 0.5rem; margin: 1rem 0; }
+        .prose pre { margin: 1rem 0; }
+        .prose code:not(pre code) { background: #f3f4f6; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-size: 0.875rem; }
+        .dark .prose code:not(pre code) { background: #374151; }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 mr-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                    <a href="../" class="flex items-center space-x-2">
+                        <span class="text-2xl">⚡</span>
+                        <span class="font-bold text-xl">FluxUpload</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="https://github.com/ersinkoc/fluxupload" target="_blank" class="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    </a>
+                    <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                        <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex pt-16">
+        <!-- Sidebar -->
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed lg:sticky top-16 left-0 w-72 h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 overflow-y-auto transition-transform lg:translate-x-0 z-40">
+            <nav class="p-6 space-y-8">
+                <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Getting Started</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#installation" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Installation</a></li>
+                        <li><a href="#quick-start" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Quick Start</a></li>
+                        <li><a href="#configuration" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Configuration</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Core Concepts</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#architecture" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Architecture</a></li>
+                        <li><a href="#plugins" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Plugins</a></li>
+                        <li><a href="#pipeline" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Pipeline Flow</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Validators</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#quota-limiter" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">QuotaLimiter</a></li>
+                        <li><a href="#magic-byte-detector" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">MagicByteDetector</a></li>
+                        <li><a href="#image-dimension-probe" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">ImageDimensionProbe</a></li>
+                        <li><a href="#rate-limiter" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">RateLimiter</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Storage</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#local-storage" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">LocalStorage</a></li>
+                        <li><a href="#s3-storage" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">S3Storage</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Advanced</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#observability" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Observability</a></li>
+                        <li><a href="#custom-plugins" class="block text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">Custom Plugins</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Overlay for mobile sidebar -->
+        <div @click="sidebarOpen = false" x-show="sidebarOpen" x-cloak class="fixed inset-0 bg-black/50 z-30 lg:hidden"></div>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 px-6 lg:px-12 py-12">
+            <div class="max-w-4xl mx-auto prose dark:prose-invert prose-headings:scroll-mt-20">
+                <h1 id="documentation">Documentation</h1>
+                <p class="lead text-xl text-gray-600 dark:text-gray-400">
+                    Everything you need to know about FluxUpload - from installation to advanced usage.
+                </p>
+
+                <hr class="my-12">
+
+                <!-- Installation -->
+                <h2 id="installation">Installation</h2>
+                <p>Install FluxUpload using npm, yarn, or pnpm:</p>
+                <pre><code class="language-bash">npm install fluxupload</code></pre>
+                <pre><code class="language-bash">yarn add fluxupload</code></pre>
+                <pre><code class="language-bash">pnpm add fluxupload</code></pre>
+
+                <p><strong>Requirements:</strong></p>
+                <ul>
+                    <li>Node.js >= 12.0.0</li>
+                    <li>No additional dependencies!</li>
+                </ul>
+
+                <hr class="my-12">
+
+                <!-- Quick Start -->
+                <h2 id="quick-start">Quick Start</h2>
+                <p>Here's a minimal example to get you started:</p>
+                <pre><code class="language-javascript">const http = require('http');
+const FluxUpload = require('fluxupload');
+const { LocalStorage } = require('fluxupload');
+
+const uploader = new FluxUpload({
+  storage: new LocalStorage({
+    destination: './uploads',
+    naming: 'uuid'
+  })
+});
+
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'POST' && req.url === '/upload') {
+    try {
+      const result = await uploader.handle(req);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (error) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+});
+
+server.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});</code></pre>
+
+                <hr class="my-12">
+
+                <!-- Configuration -->
+                <h2 id="configuration">Configuration</h2>
+                <p>FluxUpload accepts the following configuration options:</p>
+                <pre><code class="language-javascript">const uploader = new FluxUpload({
+  // Request limits
+  limits: {
+    fileSize: 10 * 1024 * 1024,  // 10MB per file
+    files: 10,                   // Max 10 files
+    fields: 20,                  // Max 20 fields
+    fieldSize: 1024 * 1024       // 1MB per field
+  },
+
+  // Validation plugins (run before storage)
+  validators: [
+    new QuotaLimiter({ maxFileSize: 10 * 1024 * 1024 }),
+    new MagicByteDetector({ allowed: ['image/*'] })
+  ],
+
+  // Transform plugins (modify stream)
+  transformers: [
+    new StreamHasher({ algorithm: 'sha256' })
+  ],
+
+  // Storage destination(s)
+  storage: new LocalStorage({ destination: './uploads' }),
+  // Or multiple storages:
+  // storage: [localStorage, s3Storage]
+
+  // Callbacks
+  onField: (name, value) => { },
+  onFile: (fileInfo, stream) => { },
+  onError: (error) => { },
+  onFinish: (result) => { }
+});</code></pre>
+
+                <hr class="my-12">
+
+                <!-- Architecture -->
+                <h2 id="architecture">Architecture</h2>
+                <p>FluxUpload uses a <strong>micro-kernel architecture</strong>:</p>
+
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-xl my-8 font-mono text-sm">
+                    <pre class="!bg-transparent !p-0 !m-0">HTTP Request (multipart/form-data)
+        │
+        ▼
+┌───────────────────┐
+│   MultipartParser │  RFC 7578 compliant parser
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│    Validators     │  QuotaLimiter, MagicByteDetector, etc.
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│   Transformers    │  StreamHasher, StreamCompressor, etc.
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│     Storage       │  LocalStorage, S3Storage, etc.
+└───────────────────┘</pre>
+                </div>
+
+                <p>Key principles:</p>
+                <ul>
+                    <li><strong>Stream-first:</strong> Data flows through pipes, never fully buffered</li>
+                    <li><strong>Plugin-based:</strong> All functionality is modular and composable</li>
+                    <li><strong>Error recovery:</strong> Automatic cleanup on failures</li>
+                </ul>
+
+                <hr class="my-12">
+
+                <!-- QuotaLimiter -->
+                <h2 id="quota-limiter">QuotaLimiter</h2>
+                <p>Enforces file size limits with immediate stream abort:</p>
+                <pre><code class="language-javascript">const { QuotaLimiter } = require('fluxupload');
+
+new QuotaLimiter({
+  maxFileSize: 50 * 1024 * 1024,     // 50MB per file
+  maxTotalSize: 200 * 1024 * 1024    // 200MB total per request
+})</code></pre>
+
+                <p><strong>Why use QuotaLimiter?</strong></p>
+                <ul>
+                    <li>Immediately aborts when limit is exceeded (saves bandwidth)</li>
+                    <li>Prevents DDOS attacks via large file uploads</li>
+                    <li>Tracks total size across all files in a request</li>
+                </ul>
+
+                <hr class="my-12">
+
+                <!-- MagicByteDetector -->
+                <h2 id="magic-byte-detector">MagicByteDetector</h2>
+                <p>Verifies file types by checking binary signatures (magic bytes):</p>
+                <pre><code class="language-javascript">const { MagicByteDetector } = require('fluxupload');
+
+new MagicByteDetector({
+  allowed: ['image/jpeg', 'image/png', 'image/gif'],
+  // Or use wildcards:
+  // allowed: ['image/*', 'application/pdf']
+})</code></pre>
+
+                <p><strong>Security:</strong> Never trust file extensions or Content-Type headers. A malicious user can rename <code>malware.exe</code> to <code>photo.jpg</code>. MagicByteDetector checks the actual binary content.</p>
+
+                <hr class="my-12">
+
+                <!-- LocalStorage -->
+                <h2 id="local-storage">LocalStorage</h2>
+                <p>Store files on the local filesystem with atomic writes:</p>
+                <pre><code class="language-javascript">const { LocalStorage } = require('fluxupload');
+
+new LocalStorage({
+  destination: './uploads',
+  naming: 'uuid',         // 'uuid', 'original', 'timestamp', 'hash', 'slugify'
+  createDirectories: true,
+  fileMode: 0o644,
+  dirMode: 0o755
+})</code></pre>
+
+                <p><strong>Atomic Writes:</strong> Files are written to a temp file first, then renamed. This prevents partial files from being visible.</p>
+
+                <hr class="my-12">
+
+                <!-- S3Storage -->
+                <h2 id="s3-storage">S3Storage</h2>
+                <p>Upload directly to AWS S3 or S3-compatible services:</p>
+                <pre><code class="language-javascript">const { S3Storage } = require('fluxupload');
+
+new S3Storage({
+  bucket: 'my-bucket',
+  region: 'us-east-1',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  prefix: 'uploads/',
+  acl: 'private',
+  storageClass: 'STANDARD'
+})</code></pre>
+
+                <p><strong>S3-Compatible Services:</strong></p>
+                <pre><code class="language-javascript">// MinIO
+new S3Storage({
+  bucket: 'my-bucket',
+  region: 'us-east-1',
+  accessKeyId: 'minioadmin',
+  secretAccessKey: 'minioadmin',
+  endpoint: 'http://localhost:9000'
+})
+
+// DigitalOcean Spaces
+new S3Storage({
+  bucket: 'my-space',
+  region: 'nyc3',
+  accessKeyId: process.env.DO_ACCESS_KEY,
+  secretAccessKey: process.env.DO_SECRET_KEY,
+  endpoint: 'https://nyc3.digitaloceanspaces.com'
+})</code></pre>
+
+                <hr class="my-12">
+
+                <!-- Observability -->
+                <h2 id="observability">Observability</h2>
+                <p>FluxUpload includes comprehensive monitoring built-in:</p>
+
+                <h3>Structured Logging</h3>
+                <pre><code class="language-javascript">const { getLogger } = require('fluxupload');
+
+const logger = getLogger({
+  level: 'info',
+  format: 'json'
+});
+
+logger.info('Upload started', { fileCount: 3 });</code></pre>
+
+                <h3>Prometheus Metrics</h3>
+                <pre><code class="language-javascript">const { getCollector } = require('fluxupload');
+
+const metrics = getCollector();
+
+// Expose metrics endpoint
+app.get('/metrics', (req, res) => {
+  res.type('text/plain');
+  res.send(metrics.toPrometheus());
+});</code></pre>
+
+                <h3>Health Checks</h3>
+                <pre><code class="language-javascript">const { HealthCheck } = require('fluxupload');
+
+const health = new HealthCheck();
+health.registerStorageCheck('./uploads');
+
+app.get('/health', async (req, res) => {
+  const status = await health.check();
+  res.json(status);
+});</code></pre>
+
+                <hr class="my-12">
+
+                <!-- Custom Plugins -->
+                <h2 id="custom-plugins">Custom Plugins</h2>
+                <p>Create your own validators, transformers, or storage drivers:</p>
+                <pre><code class="language-javascript">const { Plugin } = require('fluxupload');
+
+class MyValidator extends Plugin {
+  constructor(options) {
+    super('MyValidator');
+    this.options = options;
+  }
+
+  async process(context) {
+    const { fileInfo, stream, metadata } = context;
+
+    // Validate file
+    if (!this.isValid(fileInfo)) {
+      throw new Error('Validation failed');
+    }
+
+    // Add metadata
+    context.metadata.validated = true;
+
+    return context;
+  }
+
+  async cleanup(context, error) {
+    // Called on error for cleanup
+  }
+}</code></pre>
+
+                <p>Use your plugin:</p>
+                <pre><code class="language-javascript">const uploader = new FluxUpload({
+  validators: [
+    new MyValidator({ /* options */ })
+  ],
+  storage: new LocalStorage({ destination: './uploads' })
+});</code></pre>
+
+                <hr class="my-12">
+
+                <div class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-6 mt-12">
+                    <h3 class="text-primary-800 dark:text-primary-200 mt-0">Need More Help?</h3>
+                    <p class="text-primary-700 dark:text-primary-300 mb-4">Check out the complete API reference or explore working examples.</p>
+                    <div class="flex gap-4">
+                        <a href="../api/" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                            API Reference
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                        </a>
+                        <a href="../examples/" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                            Examples
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>Prism.highlightAll();</script>
+</body>
+</html>

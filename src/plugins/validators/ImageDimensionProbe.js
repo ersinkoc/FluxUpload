@@ -66,6 +66,11 @@ class ImageDimensionProbe extends Plugin {
 
     const newStream = context.stream.pipe(probeStream);
 
+    // Propagate errors from source stream to probe stream
+    context.stream.on('error', (err) => {
+      probeStream.destroy(err);
+    });
+
     return {
       ...context,
       stream: newStream

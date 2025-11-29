@@ -47,26 +47,29 @@ class StreamHasher extends Plugin {
   }
 
   async process(context) {
-    return new Promise((resolve) => {
-      const hashStream = new HashTransform({
-        algorithm: this.algorithm,
-        encoding: this.encoding
-      });
-
-      hashStream.on('hash', (hash) => {
-        // Add hash to metadata
-        context.metadata.hash = hash;
-        context.metadata.hashAlgorithm = this.algorithm;
-      });
-
-      // Pipe through hash stream
-      const newStream = context.stream.pipe(hashStream);
-
-      resolve({
-        ...context,
-        stream: newStream
-      });
+    const hashStream = new HashTransform({
+      algorithm: this.algorithm,
+      encoding: this.encoding
     });
+
+    hashStream.on('hash', (hash) => {
+      // Add hash to metadata
+      context.metadata.hash = hash;
+      context.metadata.hashAlgorithm = this.algorithm;
+    });
+
+    // Pipe through hash stream
+    const newStream = context.stream.pipe(hashStream);
+
+    // Propagate errors from source stream to hash stream
+    context.stream.on('error', (err) => {
+      hashStream.destroy(err);
+    });
+
+    return {
+      ...context,
+      stream: newStream
+    };
   }
 }
 

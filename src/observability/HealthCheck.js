@@ -14,6 +14,9 @@
  */
 
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
+const { URL } = require('url');
 const { promisify } = require('util');
 
 const stat = promisify(fs.stat);
@@ -143,15 +146,11 @@ class HealthCheck {
   registerS3Check(s3Storage) {
     this.register('s3', async () => {
       try {
-        // Try to list objects or head bucket
-        const testKey = `health-check-${Date.now()}`;
-        // In a real implementation, you'd make a lightweight S3 call
-        // For now, just check configuration
-
+        // Check configuration first
         const configured = !!(
           s3Storage.bucket &&
           s3Storage.region &&
-          s3Storage.accessKeyId
+          s3Storage.signer
         );
 
         if (!configured) {
@@ -160,15 +159,98 @@ class HealthCheck {
           });
         }
 
+        // Actually test S3 connectivity with a HEAD request to the bucket
+        const connectivityResult = await this._testS3Connectivity(s3Storage);
+
+        if (!connectivityResult.success) {
+          return new HealthCheckResult('s3', 'fail', {
+            bucket: s3Storage.bucket,
+            region: s3Storage.region,
+            error: connectivityResult.error,
+            latency: connectivityResult.latency
+          });
+        }
+
         return new HealthCheckResult('s3', 'pass', {
           bucket: s3Storage.bucket,
-          region: s3Storage.region
+          region: s3Storage.region,
+          latency: connectivityResult.latency
         });
       } catch (error) {
         return new HealthCheckResult('s3', 'fail', {
           error: error.message
         });
       }
+    });
+  }
+
+  /**
+   * Test S3 connectivity by making a HEAD request to the bucket
+   *
+   * @private
+   * @param {Object} s3Storage - S3Storage instance
+   * @returns {Promise<Object>} - { success: boolean, latency: number, error?: string }
+   */
+  async _testS3Connectivity(s3Storage) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const timeout = 5000; // 5 second timeout for health check
+
+      // Build URL for HEAD bucket request
+      let url;
+      if (s3Storage.endpoint) {
+        const endpoint = s3Storage.endpoint.replace(/\/$/, '');
+        url = `${endpoint}/${s3Storage.bucket}/`;
+      } else {
+        url = `https://${s3Storage.bucket}.s3.${s3Storage.region}.amazonaws.com/`;
+      }
+
+      // Sign the request
+      const signedHeaders = s3Storage.signer.sign({
+        method: 'HEAD',
+        url: url,
+        headers: {}
+      });
+
+      const urlObj = new URL(url);
+      const isHttps = urlObj.protocol === 'https:';
+      const client = isHttps ? https : http;
+
+      const requestOptions = {
+        method: 'HEAD',
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname,
+        headers: signedHeaders,
+        timeout: timeout
+      };
+
+      const req = client.request(requestOptions, (res) => {
+        const latency = Date.now() - startTime;
+
+        // S3 returns 200 for bucket exists, 403 for no access, 404 for not exists
+        if (res.statusCode === 200 || res.statusCode === 403) {
+          // 403 means bucket exists but we may not have ListBucket permission
+          // This is still a successful connectivity test
+          resolve({ success: true, latency });
+        } else if (res.statusCode === 404) {
+          resolve({ success: false, latency, error: 'Bucket not found' });
+        } else {
+          resolve({ success: false, latency, error: `HTTP ${res.statusCode}` });
+        }
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ success: false, latency: timeout, error: 'Connection timeout' });
+      });
+
+      req.on('error', (err) => {
+        const latency = Date.now() - startTime;
+        resolve({ success: false, latency, error: err.message });
+      });
+
+      req.end();
     });
   }
 

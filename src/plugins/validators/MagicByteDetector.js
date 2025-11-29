@@ -70,6 +70,11 @@ class MagicByteDetector extends Plugin {
       context.metadata.detectedMimeType = detectedMime;
     });
 
+    // Propagate errors from source stream to peeker stream
+    context.stream.on('error', (err) => {
+      peekerStream.destroy(err);
+    });
+
     return {
       ...context,
       stream: newStream
@@ -171,9 +176,11 @@ class MagicBytePeeker extends Transform {
   }
 
   _detectMime(buffer) {
-    const MimeDetector = require('../../utils/MimeDetector');
-    const detector = new MimeDetector();
-    const result = detector.detect(buffer);
+    // Use singleton detector to avoid creating new instances
+    if (!MagicBytePeeker._sharedDetector) {
+      MagicBytePeeker._sharedDetector = new (require('../../utils/MimeDetector'))();
+    }
+    const result = MagicBytePeeker._sharedDetector.detect(buffer);
     return result ? result.mime : null;
   }
 }

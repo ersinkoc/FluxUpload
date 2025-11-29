@@ -9,7 +9,7 @@
 *.env
 
 # Documentation that's not needed in npm package
-docs/
+website/
 
 # Build and test
 benchmark/

@@ -358,15 +358,17 @@ runner.describe('SignedUrls', () => {
   runner.it('should cleanup large signature sets', () => {
     const signer = new SignedUrls({ secret: 'test-secret' });
 
-    // Fill up signatures
-    for (let i = 0; i < 11000; i++) {
-      signer.usedSignatures.add(`sig-${i}`);
+    // Fill up signatures with expired timestamps
+    const expiredTime = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+    for (let i = 0; i < 100; i++) {
+      signer.usedSignatures.set(`sig-${i}`, expiredTime);
     }
 
-    assert.ok(signer.usedSignatures.size > 10000);
+    assert.ok(signer.usedSignatures.size === 100);
 
     signer._cleanup();
 
+    // All expired signatures should be cleaned up
     assert.equal(signer.usedSignatures.size, 0);
 
     signer.shutdown();

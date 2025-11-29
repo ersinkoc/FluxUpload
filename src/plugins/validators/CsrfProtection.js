@@ -16,6 +16,7 @@
 
 const crypto = require('crypto');
 const Plugin = require('../../core/Plugin');
+const { getLogger } = require('../../observability/Logger');
 
 class CsrfProtection extends Plugin {
   /**
@@ -216,8 +217,18 @@ class CsrfProtection extends Plugin {
     if (!cookieHeader) return {};
 
     return cookieHeader.split(';').reduce((cookies, cookie) => {
-      const [name, value] = cookie.trim().split('=');
-      cookies[name] = decodeURIComponent(value);
+      const parts = cookie.trim().split('=');
+      const name = parts[0];
+      const value = parts.slice(1).join('='); // Handle values with = in them
+
+      if (name && value !== undefined) {
+        try {
+          cookies[name] = decodeURIComponent(value);
+        } catch (err) {
+          // Malformed cookie value - use raw value
+          cookies[name] = value;
+        }
+      }
       return cookies;
     }, {});
   }
@@ -239,7 +250,8 @@ class CsrfProtection extends Plugin {
     }
 
     if (cleaned > 0) {
-      console.log(`[CSRF] Cleaned up ${cleaned} expired tokens`);
+      const logger = getLogger();
+      logger.debug('CSRF tokens cleaned up', { count: cleaned });
     }
   }
 

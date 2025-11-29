@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examples - FluxUpload</title>
+  <meta name="description" content="FluxUpload code examples - Learn how to implement file uploads with real-world examples">
+  <link rel="canonical" href="https://fluxupload.oxog.dev/examples/">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
+            flux: { DEFAULT: '#0ea5e9', dark: '#0369a1' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- Highlight.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    .hljs { background: transparent !important; padding: 0 !important; }
+    pre code.hljs { padding: 1rem !important; }
+  </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <a href="../" class="flex items-center space-x-2">
+            <svg class="w-8 h-8 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <span class="text-xl font-bold">FluxUpload</span>
+          </a>
+        </div>
+
+        <div class="hidden md:flex items-center space-x-8">
+          <a href="../guide/" class="text-gray-600 dark:text-gray-300 hover:text-primary-500">Guide</a>
+          <a href="../api/" class="text-gray-600 dark:text-gray-300 hover:text-primary-500">API</a>
+          <a href="./" class="text-primary-500 font-medium">Examples</a>
+          <a href="https://github.com/ersinkoc/fluxupload" target="_blank" class="text-gray-600 dark:text-gray-300 hover:text-primary-500">GitHub</a>
+
+          <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+            </svg>
+            <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="pt-24 pb-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Header -->
+      <div class="text-center mb-16">
+        <h1 class="text-4xl font-bold mb-4">Code Examples</h1>
+        <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          Real-world examples to help you get started with FluxUpload
+        </p>
+      </div>
+
+      <!-- Examples Grid -->
+      <div class="space-y-16" x-data="{ activeTab: 'basic' }">
+
+        <!-- Example 1: Basic Express Setup -->
+        <section id="basic-express" class="scroll-mt-24">
+          <div class="bg-gradient-to-r from-primary-500/10 to-cyan-500/10 dark:from-primary-500/20 dark:to-cyan-500/20 rounded-2xl p-8">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-sm font-medium rounded-full">Beginner</span>
+              <span class="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 text-sm font-medium rounded-full">Express.js</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Basic Express Setup</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              A minimal setup to handle file uploads with Express.js and store files locally.
+            </p>
+
+            <div class="bg-gray-900 rounded-xl overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                <span class="text-sm text-gray-400">server.js</span>
+                <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+              </div>
+              <pre><code class="language-javascript">const express = require('express');
+const { FluxUpload } = require('fluxupload');
+
+const app = express();
+
+// Initialize FluxUpload with local storage
+const uploader = new FluxUpload({
+  storage: {
+    type: 'local',
+    options: {
+      directory: './uploads',
+      createDirectory: true
+    }
+  },
+  limits: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5
+  },
+  allowedMimeTypes: ['image/*', 'application/pdf']
+});
+
+// Upload endpoint
+app.post('/upload', async (req, res) => {
+  try {
+    const results = await uploader.handleRequest(req);
+    res.json({
+      success: true,
+      files: results.map(r => ({
+        filename: r.filename,
+        size: r.size,
+        url: `/files/${r.filename}`
+      }))
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Serve uploaded files
+app.use('/files', express.static('./uploads'));
+
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- Example 2: S3 Upload with Presigned URLs -->
+        <section id="s3-upload" class="scroll-mt-24">
+          <div class="bg-gradient-to-r from-orange-500/10 to-red-500/10 dark:from-orange-500/20 dark:to-red-500/20 rounded-2xl p-8">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 text-sm font-medium rounded-full">Intermediate</span>
+              <span class="px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 text-sm font-medium rounded-full">AWS S3</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">S3 Storage with Signed URLs</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              Upload files directly to S3 with time-limited signed URLs for secure access.
+            </p>
+
+            <div class="bg-gray-900 rounded-xl overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                <span class="text-sm text-gray-400">s3-upload.js</span>
+                <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+              </div>
+              <pre><code class="language-javascript">const { FluxUpload, S3Storage, SignedUrls } = require('fluxupload');
+
+// Initialize S3 storage (no aws-sdk needed!)
+const s3Storage = new S3Storage({
+  bucket: process.env.S3_BUCKET,
+  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  // Optional: Custom endpoint for S3-compatible storage
+  // endpoint: 'https://s3.us-west-2.amazonaws.com'
+});
+
+// Initialize signed URL generator
+const signedUrls = new SignedUrls({
+  secret: process.env.URL_SECRET,
+  defaultExpiry: 3600 // 1 hour
+});
+
+const uploader = new FluxUpload({
+  storage: s3Storage,
+  limits: {
+    maxFileSize: 100 * 1024 * 1024 // 100MB
+  }
+});
+
+// Generate upload URL
+app.get('/get-upload-url', (req, res) => {
+  const url = signedUrls.sign('https://api.example.com/upload', {
+    maxFileSize: 50 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/png'],
+    userId: req.user.id,
+    expiresIn: 900 // 15 minutes
+  });
+
+  res.json({ uploadUrl: url });
+});
+
+// Handle upload with signed URL validation
+app.post('/upload', async (req, res) => {
+  // Validate signed URL
+  const validation = signedUrls.validate(req.url);
+  if (!validation.valid) {
+    return res.status(403).json({ error: validation.error });
+  }
+
+  const results = await uploader.handleRequest(req, {
+    // Apply constraints from signed URL
+    maxFileSize: validation.constraints.maxFileSize,
+    allowedTypes: validation.constraints.allowedTypes
+  });
+
+  res.json({ success: true, files: results });
+});</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- Example 3: Image Processing Pipeline -->
+        <section id="image-processing" class="scroll-mt-24">
+          <div class="bg-gradient-to-r from-purple-500/10 to-pink-500/10 dark:from-purple-500/20 dark:to-pink-500/20 rounded-2xl p-8">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-sm font-medium rounded-full">Advanced</span>
+              <span class="px-3 py-1 bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300 text-sm font-medium rounded-full">Image Processing</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Image Processing Pipeline</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              Build a custom pipeline to resize images, generate thumbnails, and extract metadata.
+            </p>
+
+            <div class="bg-gray-900 rounded-xl overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                <span class="text-sm text-gray-400">image-pipeline.js</span>
+                <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+              </div>
+              <pre><code class="language-javascript">const { FluxUpload, Plugin } = require('fluxupload');
+
+// Custom image resizer plugin
+class ImageResizer extends Plugin {
+  constructor(options = {}) {
+    super('ImageResizer');
+    this.maxWidth = options.maxWidth || 1920;
+    this.maxHeight = options.maxHeight || 1080;
+    this.quality = options.quality || 80;
+  }
+
+  async process(context) {
+    const { stream, fileInfo, metadata } = context;
+
+    // Only process images
+    if (!fileInfo.mimeType.startsWith('image/')) {
+      return context;
+    }
+
+    // Get dimensions from ImageDimensionProbe
+    const { width, height } = metadata.dimensions || {};
+
+    if (width > this.maxWidth || height > this.maxHeight) {
+      // Create resize transform stream
+      const resizeStream = this.createResizeStream({
+        width: this.maxWidth,
+        height: this.maxHeight,
+        fit: 'inside'
+      });
+
+      stream.pipe(resizeStream);
+      context.stream = resizeStream;
+      context.metadata.resized = true;
+    }
+
+    return context;
+  }
+}
+
+// Custom thumbnail generator plugin
+class ThumbnailGenerator extends Plugin {
+  constructor(options = {}) {
+    super('ThumbnailGenerator');
+    this.sizes = options.sizes || [150, 300, 600];
+  }
+
+  async process(context) {
+    if (!context.fileInfo.mimeType.startsWith('image/')) {
+      return context;
+    }
+
+    // Generate thumbnails after main upload
+    context.metadata.thumbnails = this.sizes.map(size => ({
+      size,
+      path: `thumbnails/${size}/${context.fileInfo.filename}`
+    }));
+
+    return context;
+  }
+}
+
+// Build the pipeline
+const uploader = new FluxUpload({
+  storage: { type: 'local', options: { directory: './uploads' } },
+  validators: [
+    'MagicByteDetector',  // Verify file type
+    'ImageDimensionProbe' // Extract dimensions
+  ],
+  transformers: [
+    new ImageResizer({ maxWidth: 1920, quality: 85 }),
+    new ThumbnailGenerator({ sizes: [150, 300] }),
+    'StreamHasher' // Generate content hash
+  ]
+});
+
+app.post('/upload/image', async (req, res) => {
+  const results = await uploader.handleRequest(req);
+
+  res.json({
+    success: true,
+    files: results.map(r => ({
+      original: r.path,
+      thumbnails: r.metadata.thumbnails,
+      dimensions: r.metadata.dimensions,
+      hash: r.metadata.hash,
+      resized: r.metadata.resized || false
+    }))
+  });
+});</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- Example 4: Multi-tenant Upload with Quotas -->
+        <section id="multi-tenant" class="scroll-mt-24">
+          <div class="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 rounded-2xl p-8">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 text-sm font-medium rounded-full">Advanced</span>
+              <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-sm font-medium rounded-full">Multi-tenant</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Multi-tenant Upload with Quotas</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              Implement per-user storage quotas with rate limiting and usage tracking.
+            </p>
+
+            <div class="bg-gray-900 rounded-xl overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                <span class="text-sm text-gray-400">multi-tenant.js</span>
+                <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+              </div>
+              <pre><code class="language-javascript">const { FluxUpload, QuotaLimiter } = require('fluxupload');
+
+// User quotas (could be from database)
+const userQuotas = {
+  free: { maxStorage: 100 * 1024 * 1024, maxFileSize: 5 * 1024 * 1024 },
+  pro: { maxStorage: 10 * 1024 * 1024 * 1024, maxFileSize: 100 * 1024 * 1024 },
+  enterprise: { maxStorage: Infinity, maxFileSize: 500 * 1024 * 1024 }
+};
+
+// Quota checker that integrates with your user system
+const quotaLimiter = new QuotaLimiter({
+  getQuota: async (context) => {
+    const user = context.request.user;
+    const plan = user.plan || 'free';
+    const quota = userQuotas[plan];
+
+    // Get current usage from database
+    const currentUsage = await db.getUserStorageUsage(user.id);
+
+    return {
+      maxFileSize: quota.maxFileSize,
+      remainingStorage: quota.maxStorage - currentUsage,
+      currentUsage
+    };
+  },
+  onQuotaExceeded: (context, quota) => {
+    const error = new Error(`Storage quota exceeded. Used: ${quota.currentUsage}, Limit: ${quota.maxStorage}`);
+    error.code = 'QUOTA_EXCEEDED';
+    error.statusCode = 413;
+    throw error;
+  }
+});
+
+const uploader = new FluxUpload({
+  storage: {
+    type: 'local',
+    options: {
+      directory: './uploads',
+      // Organize by user ID
+      generatePath: (fileInfo, context) => {
+        const userId = context.request.user.id;
+        return `${userId}/${Date.now()}-${fileInfo.filename}`;
+      }
+    }
+  },
+  validators: [quotaLimiter]
+});
+
+// Middleware to attach user to request
+app.use('/upload', authenticate);
+
+app.post('/upload', async (req, res) => {
+  try {
+    const results = await uploader.handleRequest(req);
+
+    // Update user's storage usage
+    const totalSize = results.reduce((sum, r) => sum + r.size, 0);
+    await db.incrementUserStorage(req.user.id, totalSize);
+
+    res.json({
+      success: true,
+      files: results,
+      usage: await db.getUserStorageUsage(req.user.id)
+    });
+  } catch (error) {
+    if (error.code === 'QUOTA_EXCEEDED') {
+      return res.status(413).json({
+        error: 'Storage quota exceeded',
+        upgrade: '/pricing'
+      });
+    }
+    throw error;
+  }
+});</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- Example 5: Chunked Upload for Large Files -->
+        <section id="chunked-upload" class="scroll-mt-24">
+          <div class="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 rounded-2xl p-8">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 text-sm font-medium rounded-full">Advanced</span>
+              <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-full">Large Files</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Chunked Upload for Large Files</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              Handle large file uploads with resumable chunked uploads and progress tracking.
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="bg-gray-900 rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                  <span class="text-sm text-gray-400">server.js</span>
+                  <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+                </div>
+                <pre><code class="language-javascript">const { ChunkedUploadManager } = require('fluxupload');
+
+const chunkedManager = new ChunkedUploadManager({
+  chunkSize: 5 * 1024 * 1024, // 5MB chunks
+  tempDirectory: './temp-chunks',
+  storage: s3Storage,
+  // Auto-cleanup incomplete uploads after 24h
+  cleanupAfter: 24 * 60 * 60 * 1000
+});
+
+// Initialize upload session
+app.post('/upload/init', async (req, res) => {
+  const { filename, fileSize, mimeType } = req.body;
+
+  const session = await chunkedManager.initUpload({
+    filename,
+    fileSize,
+    mimeType,
+    userId: req.user.id
+  });
+
+  res.json({
+    uploadId: session.id,
+    chunkSize: session.chunkSize,
+    totalChunks: session.totalChunks
+  });
+});
+
+// Upload chunk
+app.put('/upload/:uploadId/chunk/:index', async (req, res) => {
+  const { uploadId, index } = req.params;
+
+  const result = await chunkedManager.uploadChunk(
+    uploadId,
+    parseInt(index),
+    req
+  );
+
+  res.json({
+    received: result.received,
+    remaining: result.remaining,
+    progress: result.progress
+  });
+});
+
+// Complete upload
+app.post('/upload/:uploadId/complete', async (req, res) => {
+  const { uploadId } = req.params;
+
+  const result = await chunkedManager.completeUpload(uploadId);
+
+  res.json({
+    success: true,
+    file: result
+  });
+});</code></pre>
+              </div>
+
+              <div class="bg-gray-900 rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                  <span class="text-sm text-gray-400">client.js</span>
+                  <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+                </div>
+                <pre><code class="language-javascript">async function uploadLargeFile(file, onProgress) {
+  // Initialize upload
+  const init = await fetch('/upload/init', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filename: file.name,
+      fileSize: file.size,
+      mimeType: file.type
+    })
+  }).then(r => r.json());
+
+  const { uploadId, chunkSize, totalChunks } = init;
+
+  // Upload chunks
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, file.size);
+    const chunk = file.slice(start, end);
+
+    await fetch(`/upload/${uploadId}/chunk/${i}`, {
+      method: 'PUT',
+      body: chunk
+    });
+
+    onProgress?.((i + 1) / totalChunks * 100);
+  }
+
+  // Complete upload
+  const result = await fetch(`/upload/${uploadId}/complete`, {
+    method: 'POST'
+  }).then(r => r.json());
+
+  return result.file;
+}
+
+// Usage
+const file = document.querySelector('input[type=file]').files[0];
+uploadLargeFile(file, progress => {
+  console.log(`Upload progress: ${progress.toFixed(1)}%`);
+});</code></pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Example 6: Virus Scanning Integration -->
+        <section id="virus-scan" class="scroll-mt-24">
+          <div class="bg-gradient-to-r from-red-500/10 to-rose-500/10 dark:from-red-500/20 dark:to-rose-500/20 rounded-2xl p-8">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 text-sm font-medium rounded-full">Intermediate</span>
+              <span class="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 text-sm font-medium rounded-full">Security</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Virus Scanning Integration</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              Scan uploaded files for malware using ClamAV or cloud-based scanning services.
+            </p>
+
+            <div class="bg-gray-900 rounded-xl overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+                <span class="text-sm text-gray-400">virus-scan-plugin.js</span>
+                <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-sm">Copy</button>
+              </div>
+              <pre><code class="language-javascript">const { Plugin } = require('fluxupload');
+const { PassThrough } = require('stream');
+
+class VirusScanPlugin extends Plugin {
+  constructor(options = {}) {
+    super('VirusScanner');
+    this.scannerHost = options.host || 'localhost';
+    this.scannerPort = options.port || 3310;
+    this.maxScanSize = options.maxScanSize || 100 * 1024 * 1024;
+  }
+
+  async process(context) {
+    const { stream, fileInfo, metadata } = context;
+
+    // Skip large files (they should be scanned async)
+    if (metadata.size > this.maxScanSize) {
+      context.metadata.virusScan = { skipped: true, reason: 'file_too_large' };
+      return context;
+    }
+
+    // Collect file data for scanning
+    const chunks = [];
+    const passThrough = new PassThrough();
+
+    stream.pipe(passThrough);
+
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    const fileBuffer = Buffer.concat(chunks);
+
+    // Scan with ClamAV
+    const scanResult = await this.scanWithClamAV(fileBuffer);
+
+    if (scanResult.infected) {
+      const error = new Error(`Virus detected: ${scanResult.virus}`);
+      error.code = 'VIRUS_DETECTED';
+      error.statusCode = 422;
+      throw error;
+    }
+
+    context.metadata.virusScan = {
+      scanned: true,
+      clean: true,
+      engine: 'ClamAV',
+      timestamp: new Date().toISOString()
+    };
+
+    // Create new stream from buffer
+    const { Readable } = require('stream');
+    context.stream = Readable.from(fileBuffer);
+
+    return context;
+  }
+
+  async scanWithClamAV(buffer) {
+    return new Promise((resolve, reject) => {
+      const net = require('net');
+      const socket = net.connect(this.scannerPort, this.scannerHost);
+
+      socket.write('zINSTREAM\0');
+
+      // Send file in chunks
+      const chunkSize = 2048;
+      for (let i = 0; i < buffer.length; i += chunkSize) {
+        const chunk = buffer.slice(i, i + chunkSize);
+        const size = Buffer.alloc(4);
+        size.writeUInt32BE(chunk.length);
+        socket.write(size);
+        socket.write(chunk);
+      }
+
+      // End stream
+      socket.write(Buffer.alloc(4));
+
+      let response = '';
+      socket.on('data', data => response += data.toString());
+      socket.on('end', () => {
+        const infected = !response.includes('OK');
+        resolve({
+          infected,
+          virus: infected ? response.split(':')[1]?.trim() : null
+        });
+      });
+      socket.on('error', reject);
+    });
+  }
+}
+
+module.exports = VirusScanPlugin;</code></pre>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Quick Reference -->
+      <section class="mt-20">
+        <h2 class="text-2xl font-bold mb-8 text-center">Quick Reference</h2>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+            <h3 class="font-semibold mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Built-in Validators
+            </h3>
+            <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <li><code class="text-primary-500">MagicByteDetector</code> - File type verification</li>
+              <li><code class="text-primary-500">ImageDimensionProbe</code> - Image size limits</li>
+              <li><code class="text-primary-500">QuotaLimiter</code> - Storage quotas</li>
+              <li><code class="text-primary-500">CsrfProtection</code> - CSRF tokens</li>
+            </ul>
+          </div>
+
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+            <h3 class="font-semibold mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Built-in Transformers
+            </h3>
+            <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <li><code class="text-primary-500">StreamHasher</code> - SHA256/MD5 hashing</li>
+              <li><code class="text-primary-500">CompressionTransformer</code> - Gzip/Brotli</li>
+              <li><code class="text-primary-500">EncryptionTransformer</code> - AES encryption</li>
+            </ul>
+          </div>
+
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+            <h3 class="font-semibold mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+              </svg>
+              Storage Options
+            </h3>
+            <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <li><code class="text-primary-500">LocalStorage</code> - File system</li>
+              <li><code class="text-primary-500">S3Storage</code> - AWS S3 / compatible</li>
+              <li><code class="text-primary-500">MemoryStorage</code> - In-memory (testing)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="flex items-center space-x-2 mb-4 md:mb-0">
+          <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <span class="font-semibold">FluxUpload</span>
+        </div>
+        <div class="text-sm text-gray-500">
+          MIT License · Made with zero dependencies
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize syntax highlighting
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('pre code').forEach(block => {
+        hljs.highlightElement(block);
+      });
+    });
+
+    // Copy code function
+    function copyCode(button) {
+      const pre = button.closest('.bg-gray-900').querySelector('pre code');
+      navigator.clipboard.writeText(pre.textContent).then(() => {
+        const original = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => button.textContent = original, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -23,6 +23,10 @@ const { URL } = require('url');
 const Plugin = require('../core/Plugin');
 const AwsSignatureV4 = require('../utils/AwsSignatureV4');
 const FileNaming = require('../utils/FileNaming');
+const { getLogger } = require('../observability/Logger');
+
+// Max response body size to prevent DoS (1MB should be plenty for S3 error responses)
+const MAX_RESPONSE_BODY_SIZE = 1024 * 1024;
 
 class S3Storage extends Plugin {
   /**
@@ -129,7 +133,8 @@ class S3Storage extends Plugin {
     try {
       await this._deleteFromS3(key);
     } catch (err) {
-      console.error('Failed to cleanup S3 object:', err);
+      const logger = getLogger();
+      logger.error('Failed to cleanup S3 object', { key, error: err.message });
     }
 
     this.uploadedKeys.delete(context);
@@ -199,13 +204,20 @@ class S3Storage extends Plugin {
 
       // Create request
       const req = client.request(requestOptions, (res) => {
-        let responseBody = '';
+        const chunks = [];
+        let totalSize = 0;
 
         res.on('data', (chunk) => {
-          responseBody += chunk;
+          totalSize += chunk.length;
+          // Limit response body size to prevent DoS
+          if (totalSize <= MAX_RESPONSE_BODY_SIZE) {
+            chunks.push(chunk);
+          }
         });
 
         res.on('end', () => {
+          const responseBody = Buffer.concat(chunks).toString('utf8');
+
           if (res.statusCode >= 200 && res.statusCode < 300) {
             // Success
             const etag = res.headers['etag'];
@@ -222,6 +234,10 @@ class S3Storage extends Plugin {
             error.body = responseBody;
             reject(error);
           }
+        });
+
+        res.on('error', (err) => {
+          reject(new Error(`S3 response error: ${err.message}`));
         });
       });
 
