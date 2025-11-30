@@ -3,30 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FluxUpload - Zero-Dependency File Upload Framework for Node.js</title>
-    <meta name="description" content="A powerful, secure, zero-dependency file upload framework for Node.js. Handle multipart uploads with enterprise-grade security and reliability.">
+    <title>FluxUpload - Zero-Dependency File Upload for Node.js</title>
+    <meta name="description" content="Stream-first, plugin-based file upload handler for Node.js. Zero dependencies, maximum performance.">
 
-    <!-- Favicon - Cloud Upload Icon -->
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%230ea5e9'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12'/%3E%3C/svg%3E">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    <!-- Custom Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    },
                     colors: {
                         primary: {
                             50: '#f0f9ff',
                             100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
                             500: '#0ea5e9',
                             600: '#0284c7',
                             700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
                         }
                     }
                 }
@@ -34,488 +43,491 @@
         }
     </script>
 
-    <!-- Syntax Highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
 
     <style>
-        @keyframes fade-in-up {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        [x-cloak] { display: none !important; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
         }
-
-        .animate-fade-in-up {
-            animation: fade-in-up 0.6s ease-out;
+        .code-block {
+            background: #1e293b;
+            border-radius: 0.75rem;
         }
-
-        .gradient-text {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        pre[class*="language-"] {
+            margin: 0;
+            border-radius: 0.75rem;
+            background: #1e293b !important;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body class="bg-white text-gray-900 font-sans antialiased" x-data="{ mobileMenu: false }">
 
     <!-- Navigation -->
-    <nav class="fixed top-0 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800 z-50" x-data="{ mobileMenuOpen: false }">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav class="fixed top-0 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
+                <!-- Logo -->
+                <a href="./" class="flex items-center gap-2">
                     <svg class="w-8 h-8 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <span class="ml-2 text-xl font-bold">FluxUpload</span>
-                </div>
+                    <span class="text-xl font-bold text-gray-900">FluxUpload</span>
+                </a>
 
-                <!-- Desktop Menu -->
-                <div class="hidden md:flex space-x-8">
-                    <a href="./guide/" class="text-slate-300 hover:text-primary-500 transition">Guide</a>
-                    <a href="./api/" class="text-slate-300 hover:text-primary-500 transition">API</a>
-                    <a href="./examples/" class="text-slate-300 hover:text-primary-500 transition">Examples</a>
-                    <a href="#features" class="text-slate-300 hover:text-primary-500 transition">Features</a>
-                    <a href="https://github.com/ersinkoc/FluxUpload" target="_blank" class="text-slate-300 hover:text-primary-500 transition">
+                <!-- Desktop Nav -->
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="#features" class="text-gray-600 hover:text-primary-600 transition font-medium">Features</a>
+                    <a href="#plugins" class="text-gray-600 hover:text-primary-600 transition font-medium">Plugins</a>
+                    <a href="./guide/" class="text-gray-600 hover:text-primary-600 transition font-medium">Docs</a>
+                    <a href="./api/" class="text-gray-600 hover:text-primary-600 transition font-medium">API</a>
+                    <a href="./examples/" class="text-gray-600 hover:text-primary-600 transition font-medium">Examples</a>
+                    <a href="https://github.com/ersinkoc/FluxUpload" target="_blank" class="text-gray-600 hover:text-primary-600 transition">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                     </a>
                 </div>
 
-                <!-- Mobile Menu Button -->
-                <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden">
+                <!-- Mobile menu button -->
+                <button @click="mobileMenu = !mobileMenu" class="md:hidden p-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
             </div>
 
-            <!-- Mobile Menu -->
-            <div x-show="mobileMenuOpen" x-transition class="md:hidden pb-4">
-                <a href="./guide/" class="block py-2 text-slate-300 hover:text-primary-500">Guide</a>
-                <a href="./api/" class="block py-2 text-slate-300 hover:text-primary-500">API</a>
-                <a href="./examples/" class="block py-2 text-slate-300 hover:text-primary-500">Examples</a>
-                <a href="#features" class="block py-2 text-slate-300 hover:text-primary-500">Features</a>
-                <a href="https://github.com/ersinkoc/FluxUpload" class="block py-2 text-slate-300 hover:text-primary-500">GitHub</a>
+            <!-- Mobile Nav -->
+            <div x-show="mobileMenu" x-cloak x-transition class="md:hidden pb-4 border-t border-gray-100">
+                <a href="#features" class="block py-3 text-gray-600">Features</a>
+                <a href="#plugins" class="block py-3 text-gray-600">Plugins</a>
+                <a href="./guide/" class="block py-3 text-gray-600">Docs</a>
+                <a href="./api/" class="block py-3 text-gray-600">API</a>
+                <a href="./examples/" class="block py-3 text-gray-600">Examples</a>
+                <a href="https://github.com/ersinkoc/FluxUpload" class="block py-3 text-gray-600">GitHub</a>
             </div>
         </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="pt-32 pb-20 px-4">
-        <div class="max-w-7xl mx-auto text-center">
-            <div class="animate-fade-in-up">
-                <div class="inline-flex items-center gap-2 bg-primary-500/10 border border-primary-500/20 rounded-full px-4 py-2 mb-6">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-500 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
-                    </span>
-                    <span class="text-sm font-medium text-primary-400">Production Ready • 77% Bug Fix Rate • 100% Test Coverage</span>
-                </div>
-
-                <h1 class="text-5xl md:text-7xl font-bold mb-6">
-                    <span class="gradient-text">Zero-Dependency</span><br>
-                    File Upload Framework
-                </h1>
-
-                <p class="text-xl text-slate-400 mb-8 max-w-3xl mx-auto">
-                    Enterprise-grade file upload handling for Node.js. Secure, reliable, and blazingly fast with no external dependencies.
-                </p>
-
-                <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="#quickstart" class="bg-primary-500 hover:bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold transition transform hover:scale-105">
-                        Get Started →
-                    </a>
-                    <a href="https://github.com/ersinkoc/FluxUpload" class="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-lg font-semibold transition border border-slate-700">
-                        View on GitHub
-                    </a>
-                </div>
-
-                <div class="mt-12 flex flex-wrap justify-center gap-8 text-sm text-slate-400">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span>656+ Tests Passing</span>
+    <section class="pt-32 pb-20 gradient-bg">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <!-- Left: Content -->
+                <div>
+                    <div class="inline-flex items-center gap-2 bg-primary-100 text-primary-700 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+                        <span class="w-2 h-2 bg-primary-500 rounded-full"></span>
+                        v2.0 Released
                     </div>
-                    <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span>Zero Dependencies</span>
+
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
+                        File uploads,<br>
+                        <span class="text-primary-600">done right.</span>
+                    </h1>
+
+                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                        Zero-dependency, stream-first file upload handler for Node.js.
+                        Plugin-based architecture for unlimited flexibility.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-4 mb-8">
+                        <a href="./guide/" class="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-lg shadow-primary-500/25">
+                            Get Started
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                            </svg>
+                        </a>
+                        <a href="https://github.com/ersinkoc/FluxUpload" class="inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-lg font-semibold transition border border-gray-200">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                            View on GitHub
+                        </a>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span>Production Secure</span>
+
+                    <!-- Stats -->
+                    <div class="flex flex-wrap gap-8 text-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span class="text-gray-600"><strong class="text-gray-900">Zero</strong> dependencies</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span class="text-gray-600"><strong class="text-gray-900">O(1)</strong> memory</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span class="text-gray-600"><strong class="text-gray-900">TypeScript</strong> ready</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- Quick Start Section -->
-    <section id="quickstart" class="py-20 px-4 bg-slate-900/50">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-12">
-                <h2 class="text-4xl font-bold mb-4">Quick Start</h2>
-                <p class="text-slate-400">Get up and running in minutes</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8">
-                <!-- Installation -->
-                <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        Installation
-                    </h3>
-                    <pre class="bg-slate-950 rounded-lg p-4 overflow-x-auto"><code class="language-bash">npm install fluxupload</code></pre>
-                </div>
-
-                <!-- Basic Usage -->
-                <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-                        </svg>
-                        Basic Usage
-                    </h3>
-                    <pre class="bg-slate-950 rounded-lg p-4 overflow-x-auto text-sm"><code class="language-javascript">const FluxUpload = require('fluxupload');
+                <!-- Right: Code -->
+                <div class="animate-float">
+                    <div class="code-block p-1 shadow-2xl">
+                        <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-700">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span class="ml-2 text-gray-400 text-sm font-mono">server.js</span>
+                        </div>
+                        <pre class="p-4 text-sm"><code class="language-javascript">const FluxUpload = require('fluxupload');
 
 const uploader = new FluxUpload({
   storage: 'local',
-  destination: './uploads'
+  destination: './uploads',
+  limits: { fileSize: 50 * 1024 * 1024 }
 });
 
-server.on('request', (req, res) => {
-  uploader.handle(req)
-    .then(result => {
-      res.end(JSON.stringify(result));
-    });
+app.post('/upload', async (req, res) => {
+  const result = await uploader.handle(req);
+  res.json({ files: result.files });
 });</code></pre>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="py-20 px-4">
-        <div class="max-w-7xl mx-auto">
+    <section id="features" class="py-24 bg-white">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-4">Powerful Features</h2>
-                <p class="text-slate-400">Everything you need for production file uploads</p>
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Why FluxUpload?</h2>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto">Built for modern Node.js applications with performance and security in mind.</p>
             </div>
 
-            <div class="grid md:grid-cols-3 gap-8">
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Feature 1 -->
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-6 hover:border-primary-500/50 transition">
-                    <div class="bg-primary-500/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                <div class="feature-card bg-gray-50 rounded-2xl p-8 transition-all duration-300 hover:shadow-xl">
+                    <div class="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold mb-2">Enterprise Security</h3>
-                    <p class="text-slate-400">Built-in CSRF protection, signed URLs, rate limiting, and comprehensive input validation.</p>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Zero Dependencies</h3>
+                    <p class="text-gray-600">Pure Node.js implementation using only native modules. No supply chain risks, faster installs.</p>
                 </div>
 
                 <!-- Feature 2 -->
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-6 hover:border-primary-500/50 transition">
-                    <div class="bg-primary-500/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                <div class="feature-card bg-gray-50 rounded-2xl p-8 transition-all duration-300 hover:shadow-xl">
+                    <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold mb-2">Zero Dependencies</h3>
-                    <p class="text-slate-400">Pure Node.js implementation. No external packages, reduced attack surface, faster installs.</p>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Stream-First</h3>
+                    <p class="text-gray-600">Never buffers entire files in memory. Constant O(1) memory usage regardless of file size.</p>
                 </div>
 
                 <!-- Feature 3 -->
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-6 hover:border-primary-500/50 transition">
-                    <div class="bg-primary-500/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                <div class="feature-card bg-gray-50 rounded-2xl p-8 transition-all duration-300 hover:shadow-xl">
+                    <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold mb-2">Battle Tested</h3>
-                    <p class="text-slate-400">656+ passing tests, comprehensive bug fixes, and production-ready reliability.</p>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Plugin Architecture</h3>
+                    <p class="text-gray-600">Micro-kernel design with validators, transformers, and storage adapters. Extend as needed.</p>
                 </div>
 
                 <!-- Feature 4 -->
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-6 hover:border-primary-500/50 transition">
-                    <div class="bg-primary-500/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                <div class="feature-card bg-gray-50 rounded-2xl p-8 transition-all duration-300 hover:shadow-xl">
+                    <div class="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold mb-2">Plugin System</h3>
-                    <p class="text-slate-400">Validators, transformers, and storage adapters. Extensible architecture for custom workflows.</p>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Security First</h3>
+                    <p class="text-gray-600">Magic byte verification, CSRF protection, path traversal prevention, atomic writes.</p>
                 </div>
 
                 <!-- Feature 5 -->
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-6 hover:border-primary-500/50 transition">
-                    <div class="bg-primary-500/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                <div class="feature-card bg-gray-50 rounded-2xl p-8 transition-all duration-300 hover:shadow-xl">
+                    <div class="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold mb-2">Multiple Storage</h3>
-                    <p class="text-slate-400">Local filesystem, AWS S3, and custom adapters. Flexible storage for any use case.</p>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Multi-Storage</h3>
+                    <p class="text-gray-600">Local filesystem, AWS S3, or both simultaneously. Native Signature V4 without aws-sdk.</p>
                 </div>
 
                 <!-- Feature 6 -->
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-6 hover:border-primary-500/50 transition">
-                    <div class="bg-primary-500/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                <div class="feature-card bg-gray-50 rounded-2xl p-8 transition-all duration-300 hover:shadow-xl">
+                    <div class="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold mb-2">Observability</h3>
-                    <p class="text-slate-400">Built-in logging, metrics, progress tracking, and health checks for monitoring.</p>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Observability</h3>
+                    <p class="text-gray-600">Built-in logging, metrics collection, progress tracking, and health checks.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Security Section -->
-    <section id="security" class="py-20 px-4 bg-slate-900/50">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-4">Security First</h2>
-                <p class="text-slate-400">Comprehensive security audit with 100% critical fixes</p>
-            </div>
+    <!-- Architecture Section -->
+    <section class="py-24 bg-gray-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">Micro-Kernel Architecture</h2>
+                    <p class="text-lg text-gray-600 mb-8">
+                        A minimal core that orchestrates plugins. Each plugin does one thing well.
+                    </p>
 
-            <div class="grid md:grid-cols-2 gap-8">
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-8">
-                    <h3 class="text-2xl font-semibold mb-6">Recent Security Improvements</h3>
-                    <div class="space-y-4">
-                        <div class="flex items-start gap-3">
-                            <div class="bg-green-500/10 rounded-full p-1 mt-1">
-                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold">Buffer Overflow Protection</h4>
-                                <p class="text-sm text-slate-400">Fixed critical buffer handling in multipart parsing</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <div class="bg-green-500/10 rounded-full p-1 mt-1">
-                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold">Authentication Bypass Fixed</h4>
-                                <p class="text-sm text-slate-400">Eliminated NaN expiration bypass vulnerability</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <div class="bg-green-500/10 rounded-full p-1 mt-1">
-                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold">DoS Prevention</h4>
-                                <p class="text-sm text-slate-400">Resilient cookie parsing prevents crash attacks</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-8">
-                    <h3 class="text-2xl font-semibold mb-6">Bug Fix Metrics</h3>
                     <div class="space-y-6">
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <span class="text-sm font-medium">Critical Severity</span>
-                                <span class="text-sm text-green-500">1/1 Fixed (100%)</span>
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <span class="text-blue-600 font-bold">1</span>
                             </div>
-                            <div class="w-full bg-slate-700 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <span class="text-sm font-medium">High Severity</span>
-                                <span class="text-sm text-green-500">5/5 Fixed (100%)</span>
-                            </div>
-                            <div class="w-full bg-slate-700 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-1">Validators</h4>
+                                <p class="text-gray-600">Check files before processing: size limits, file types, rate limiting, CSRF.</p>
                             </div>
                         </div>
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <span class="text-sm font-medium">Medium Severity</span>
-                                <span class="text-sm text-green-500">10/10 Fixed (100%)</span>
+
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <span class="text-purple-600 font-bold">2</span>
                             </div>
-                            <div class="w-full bg-slate-700 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-1">Transformers</h4>
+                                <p class="text-gray-600">Process streams: compute checksums, compress, resize images on the fly.</p>
                             </div>
                         </div>
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <span class="text-sm font-medium">Overall Fix Rate</span>
-                                <span class="text-sm text-primary-500">17/22 Fixed (77%)</span>
+
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <span class="text-green-600 font-bold">3</span>
                             </div>
-                            <div class="w-full bg-slate-700 rounded-full h-2">
-                                <div class="bg-primary-500 h-2 rounded-full" style="width: 77%"></div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-1">Storage</h4>
+                                <p class="text-gray-600">Save files: local disk with atomic writes, S3 with presigned URLs.</p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- Code Example Section -->
-    <section class="py-20 px-4">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-12">
-                <h2 class="text-4xl font-bold mb-4">Full Example</h2>
-                <p class="text-slate-400">Complete setup with security and validation</p>
-            </div>
-
-            <div class="bg-slate-800/30 border border-slate-700 rounded-xl p-8">
-                <pre class="overflow-x-auto"><code class="language-javascript">const http = require('http');
-const FluxUpload = require('fluxupload');
-const {
-  LocalStorage,
-  CsrfProtection,
-  RateLimiter,
-  QuotaLimiter,
-  MagicByteDetector,
-  StreamHasher
-} = FluxUpload;
-
-// Create uploader with plugins
-const uploader = new FluxUpload({
-  storage: new LocalStorage({
-    destination: './uploads',
-    naming: 'uuid'
-  }),
-
+                <div class="code-block p-1 shadow-2xl">
+                    <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-700">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="ml-2 text-gray-400 text-sm font-mono">pipeline.js</span>
+                    </div>
+                    <pre class="p-4 text-sm"><code class="language-javascript">const uploader = new FluxUpload({
+  // Validators run first
   validators: [
-    new CsrfProtection(),
-    new RateLimiter({ limit: 100, windowMs: 60000 }),
-    new QuotaLimiter({ maxFileSize: 100 * 1024 * 1024 }),
-    new MagicByteDetector()
+    new QuotaLimiter({ maxFileSize: 100*MB }),
+    new MagicByteDetector(),
+    new RateLimiter({ limit: 100 })
   ],
 
+  // Transformers process the stream
   transformers: [
     new StreamHasher({ algorithm: 'sha256' })
   ],
 
-  limits: {
-    fileSize: 100 * 1024 * 1024,  // 100MB
-    files: 10
-  }
-});
+  // Storage saves the file
+  storage: new LocalStorage({
+    destination: './uploads',
+    naming: 'uuid'
+  })
+});</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
 
-// Initialize
-await uploader.initialize();
+    <!-- Plugins Section -->
+    <section id="plugins" class="py-24 bg-white">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Built-in Plugins</h2>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto">Everything you need out of the box. Mix and match to build your pipeline.</p>
+            </div>
 
-// Handle uploads
-http.createServer(async (req, res) => {
-  if (req.url === '/upload' && req.method === 'POST') {
-    try {
-      const result = await uploader.handle(req);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        success: true,
-        files: result.files,
-        fields: result.fields
-      }));
-    } catch (error) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: error.message }));
-    }
-  }
-}).listen(3000);
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Validators -->
+                <div class="bg-blue-50 rounded-2xl p-8">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-blue-200 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">Validators</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>QuotaLimiter</strong> - Size limits</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>MagicByteDetector</strong> - Type check</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>ImageDimensionProbe</strong></span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>RateLimiter</strong> - Throttling</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>CsrfProtection</strong></span>
+                        </li>
+                    </ul>
+                </div>
 
-console.log('Server running on http://localhost:3000');</code></pre>
+                <!-- Transformers -->
+                <div class="bg-purple-50 rounded-2xl p-8">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">Transformers</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>StreamHasher</strong> - SHA/MD5</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>StreamCompressor</strong> - Gzip</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700 opacity-50">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                            <span>Custom transformers...</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Storage -->
+                <div class="bg-green-50 rounded-2xl p-8">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-green-200 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">Storage</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>LocalStorage</strong> - Atomic writes</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>S3Storage</strong> - Native Sig V4</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            <span><strong>SignedUrls</strong> - Secure links</span>
+                        </li>
+                        <li class="flex items-center gap-2 text-gray-700 opacity-50">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                            <span>MinIO, DO Spaces...</span>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- CTA Section -->
-    <section class="py-20 px-4 bg-gradient-to-r from-primary-600 to-primary-700">
-        <div class="max-w-4xl mx-auto text-center">
-            <h2 class="text-4xl font-bold mb-4">Ready to Get Started?</h2>
-            <p class="text-xl text-primary-100 mb-8">Join developers building secure file upload systems with FluxUpload</p>
+    <section class="py-24 bg-gradient-to-br from-primary-600 to-primary-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6">Start building today</h2>
+            <p class="text-xl text-primary-100 mb-10">Install FluxUpload and handle file uploads the right way.</p>
+
+            <div class="bg-white/10 backdrop-blur rounded-xl p-4 mb-10 inline-block">
+                <code class="text-white font-mono text-lg">npm install fluxupload</code>
+            </div>
+
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="https://github.com/ersinkoc/FluxUpload" class="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-slate-100 transition">
-                    View Documentation
+                <a href="./guide/" class="inline-flex items-center justify-center gap-2 bg-white text-primary-700 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition">
+                    Read the Docs
                 </a>
-                <a href="https://github.com/ersinkoc/FluxUpload/issues" class="bg-primary-800 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-900 transition border border-primary-500">
-                    Report Issues
+                <a href="./examples/" class="inline-flex items-center justify-center gap-2 bg-primary-700/50 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition border border-primary-400/30">
+                    View Examples
                 </a>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="bg-slate-900 border-t border-slate-800 py-12 px-4">
-        <div class="max-w-7xl mx-auto">
-            <div class="grid md:grid-cols-4 gap-8">
+    <footer class="bg-gray-900 text-gray-400 py-16">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <div class="grid md:grid-cols-4 gap-12 mb-12">
                 <div>
-                    <div class="flex items-center mb-4">
-                        <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    <div class="flex items-center gap-2 mb-4">
+                        <svg class="w-7 h-7 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                         </svg>
-                        <span class="ml-2 text-lg font-bold">FluxUpload</span>
+                        <span class="text-xl font-bold text-white">FluxUpload</span>
                     </div>
-                    <p class="text-slate-400 text-sm">Enterprise-grade file upload framework for Node.js</p>
+                    <p class="text-sm">Zero-dependency file upload handler for Node.js</p>
                 </div>
 
                 <div>
-                    <h4 class="font-semibold mb-4">Documentation</h4>
-                    <ul class="space-y-2 text-slate-400 text-sm">
-                        <li><a href="https://github.com/ersinkoc/FluxUpload#readme" class="hover:text-primary-500">Getting Started</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/API.md" class="hover:text-primary-500">API Reference</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/RECIPES.md" class="hover:text-primary-500">Recipes</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/SECURITY.md" class="hover:text-primary-500">Security</a></li>
+                    <h4 class="font-semibold text-white mb-4">Documentation</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="./guide/" class="hover:text-primary-400 transition">Getting Started</a></li>
+                        <li><a href="./api/" class="hover:text-primary-400 transition">API Reference</a></li>
+                        <li><a href="./examples/" class="hover:text-primary-400 transition">Examples</a></li>
                     </ul>
                 </div>
 
                 <div>
-                    <h4 class="font-semibold mb-4">Resources</h4>
-                    <ul class="space-y-2 text-slate-400 text-sm">
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/BUG_ANALYSIS_REPORT.md" class="hover:text-primary-500">Bug Analysis</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/CHANGELOG-BUGFIXES.md" class="hover:text-primary-500">Changelog</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/CONTRIBUTING.md" class="hover:text-primary-500">Contributing</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/CODE_OF_CONDUCT.md" class="hover:text-primary-500">Code of Conduct</a></li>
+                    <h4 class="font-semibold text-white mb-4">Resources</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="https://github.com/ersinkoc/FluxUpload" class="hover:text-primary-400 transition">GitHub</a></li>
+                        <li><a href="https://www.npmjs.com/package/fluxupload" class="hover:text-primary-400 transition">npm</a></li>
+                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/CHANGELOG.md" class="hover:text-primary-400 transition">Changelog</a></li>
                     </ul>
                 </div>
 
                 <div>
-                    <h4 class="font-semibold mb-4">Community</h4>
-                    <ul class="space-y-2 text-slate-400 text-sm">
-                        <li><a href="https://github.com/ersinkoc/FluxUpload" class="hover:text-primary-500">GitHub</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/issues" class="hover:text-primary-500">Issues</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/discussions" class="hover:text-primary-500">Discussions</a></li>
-                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/LICENSE" class="hover:text-primary-500">MIT License</a></li>
+                    <h4 class="font-semibold text-white mb-4">Community</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="https://github.com/ersinkoc/FluxUpload/issues" class="hover:text-primary-400 transition">Issues</a></li>
+                        <li><a href="https://github.com/ersinkoc/FluxUpload/discussions" class="hover:text-primary-400 transition">Discussions</a></li>
+                        <li><a href="https://github.com/ersinkoc/FluxUpload/blob/main/CONTRIBUTING.md" class="hover:text-primary-400 transition">Contributing</a></li>
                     </ul>
                 </div>
             </div>
 
-            <div class="border-t border-slate-800 mt-12 pt-8 text-center text-slate-400 text-sm">
-                <p>&copy; 2025 FluxUpload. Made with ❤️ for the Node.js community.</p>
+            <div class="border-t border-gray-800 pt-8 text-center text-sm">
+                <p>&copy; 2025 FluxUpload. MIT License.</p>
             </div>
         </div>
     </footer>
 
-    <!-- Syntax Highlighting Initialization -->
     <script>
-        hljs.highlightAll();
+        // Initialize Prism.js
+        Prism.highlightAll();
     </script>
 </body>
 </html>
