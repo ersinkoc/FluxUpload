@@ -39,6 +39,12 @@ class SignedUrls {
     this.cleanupInterval = setInterval(() => {
       this._cleanup();
     }, 300000); // Cleanup every 5 minutes
+
+    // BUG-NEW-01 fix: Unref the interval to allow process to exit gracefully
+    // Without unref(), the interval keeps the event loop active, preventing clean shutdown
+    // With unref(), the interval runs if the process is active for other reasons,
+    // but doesn't prevent the process from exiting when nothing else is running
+    this.cleanupInterval.unref();
   }
 
   /**
@@ -281,6 +287,7 @@ class SignedUrls {
   shutdown() {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null; // Explicitly null for garbage collection
     }
     this.usedSignatures.clear();
   }

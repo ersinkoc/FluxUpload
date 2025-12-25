@@ -297,14 +297,18 @@ class S3Storage extends Plugin {
    * @returns {string}
    */
   _buildUrl(key) {
+    // BUG-NEW-02 fix: Encode each path segment separately to preserve '/' hierarchy
+    // encodeURIComponent(key) would encode '/' as '%2F', breaking S3 paths with prefixes
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+
     if (this.endpoint) {
       // Custom endpoint (MinIO, DigitalOcean Spaces, etc.)
       const endpoint = this.endpoint.replace(/\/$/, ''); // Remove trailing slash
-      return `${endpoint}/${this.bucket}/${encodeURIComponent(key)}`;
+      return `${endpoint}/${this.bucket}/${encodedKey}`;
     } else {
       // Standard AWS S3
       // Use virtual-hosted-style URL
-      return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${encodeURIComponent(key)}`;
+      return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${encodedKey}`;
     }
   }
 
@@ -315,11 +319,14 @@ class S3Storage extends Plugin {
    * @returns {string}
    */
   _buildPublicUrl(key) {
+    // BUG-NEW-02 fix: Encode each path segment separately to preserve '/' hierarchy
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+
     if (this.endpoint) {
       const endpoint = this.endpoint.replace(/\/$/, '');
-      return `${endpoint}/${this.bucket}/${encodeURIComponent(key)}`;
+      return `${endpoint}/${this.bucket}/${encodedKey}`;
     } else {
-      return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${encodeURIComponent(key)}`;
+      return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${encodedKey}`;
     }
   }
 
